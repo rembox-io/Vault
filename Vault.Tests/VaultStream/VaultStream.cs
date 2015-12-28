@@ -12,7 +12,7 @@ namespace Vault.Tests.VaultStream
     {
         // test initilalize methods
 
-        [TestFixtureSetUp]
+        [SetUp]
         public void TestSetup()
         {
             _stream = new Core.Data.VaultStream(GetVaultStream(), 1, VaultConfiguration);

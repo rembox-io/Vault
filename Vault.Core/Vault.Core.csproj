@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
+    <Compile Include="Data\BitMask.cs" />
     <Compile Include="Data\Block.cs" />
     <Compile Include="Data\DataService.cs" />
     <Compile Include="Data\Range.cs" />

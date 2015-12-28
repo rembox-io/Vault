@@ -113,15 +113,15 @@ namespace Vault.Core.Data
             if (length == 0)
                 return 0;
 
-            var result = length / _vaultConfiguration.BlockContentSize;
+            var result = length/_vaultConfiguration.BlockContentSize;
             if (result == 0)
                 return 1;
 
-            if (length % _vaultConfiguration.BlockContentSize > 0)
+            if (length%_vaultConfiguration.BlockContentSize > 0)
                 result++;
-            return (int)result;
+            return (int) result;
         }
-        
+
         #region Stream Impl
 
         public override void Flush()
