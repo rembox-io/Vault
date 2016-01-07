@@ -85,35 +85,35 @@ namespace Vault.Tests.VaultStream
             {
                 new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 5))
                     .SetName("1. Корректный поиск в первом блоке")
-                    .Returns(new Range(81, 86)),
+                    .Returns(new Range(201, 206)),
 
                 new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 56))
                     .SetName("2. Выход за пределый правой части границы")
-                    .Returns(new Range(81, 136)),
+                    .Returns(new Range(201, 256)),
 
                 new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 55))
                     .SetName("3. Ровно в границах блока")
-                    .Returns(new Range(81, 136)),
+                    .Returns(new Range(201, 256)),
 
                 new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(56, 110))
                     .SetName("4. Ровно в границах второго блока")
-                    .Returns(new Range(146, 200)),
+                    .Returns(new Range(266, 320)),
 
                 new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 100))
                     .SetName("5. Внутри границ второго блока")
-                    .Returns(new Range(150, 190)),
+                    .Returns(new Range(270, 310)),
 
                 new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 120))
                     .SetName("6. Выход за границы второго блока")
-                    .Returns(new Range(150, 200)),
+                    .Returns(new Range(270, 320)),
 
                 new TestCaseData(GetVaultStream(), 3, 20, 2, new Range(110, 130))
                     .SetName("7. Ровно в границах не полного третьего блока")
-                    .Returns(new Range(209, 229)),
+                    .Returns(new Range(329, 349)),
 
                 new TestCaseData(GetVaultStream(), 3, 20, 2, new Range(110, 135))
                     .SetName("8. Выход за границы не полного третьего блока")
-                    .Returns(new Range(209, 229)),
+                    .Returns(new Range(329, 349)),
             };
         }
 
@@ -132,19 +132,19 @@ namespace Vault.Tests.VaultStream
             {
                 new TestCaseData(0, 5)
                 .SetName("1. Первый блок, один кусок.")
-                .Returns(new [] {new Range(81, 86)}),
+                .Returns(new [] {new Range(201, 206)}),
 
                 new TestCaseData(0, 60)
                 .SetName("2. Первый и второй блоки. ")
-                .Returns(new [] {new Range(81, 136), new Range(145, 150)}),
+                .Returns(new [] {new Range(201, 256), new Range(265, 270)}),
 
                 new TestCaseData(20, 70)
                 .SetName("3. Конец первого и начало торого блока. ")
-                .Returns(new [] {new Range(101, 136), new Range(145, 180)}),
+                .Returns(new [] {new Range(221, 256), new Range(265, 300)}),
 
                 new TestCaseData(120, 20)
                 .SetName("4. Конец первого и начало торого блока. ")
-                .Returns(new [] {new Range(219, 229)}),
+                .Returns(new [] {new Range(339, 349)}),
             };
         }
 
@@ -206,7 +206,7 @@ namespace Vault.Tests.VaultStream
         {
 
             return new VaultGenerator()
-                .InitializeVault()
+                .InitializeVault(VaultConfiguration)
                 .WriteBlock(continuation: 2, pattern: Pattern1)
                 .WriteBlock(continuation: 3, pattern: Pattern2)
                 .WriteBlock(allocated: 20, pattern: Pattern3)
@@ -221,7 +221,8 @@ namespace Vault.Tests.VaultStream
         #region Inititalize variable
         {
                 BlockFullSize = 64,
-                BlockMetadataSize = 9
+                BlockMetadataSize = 9,
+                VaultMetadataSize = 128
             };
         #endregion
 

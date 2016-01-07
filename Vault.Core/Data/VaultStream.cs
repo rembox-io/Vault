@@ -65,11 +65,12 @@ namespace Vault.Core.Data
 
         internal void ReleaseBlocks(BlockInfo[] blocksForRelease)
         {
+
         }
 
         internal int GetBlockOffset(int blockIndex)
         {
-            return Constants.VaultMetadataSize + blockIndex* _vaultConfiguration.BlockFullSize;
+            return _vaultConfiguration.VaultMetadataSize + blockIndex* _vaultConfiguration.BlockFullSize;
         }
 
         internal Range[] GetBackStreaamRangesToCopy(int count)

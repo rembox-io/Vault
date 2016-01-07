@@ -13,7 +13,8 @@ namespace Vault.Tests.VaultStream
         [SetUp]
         public void TestSetup()
         {
-            _bitMask = new Core.Data.BitMask(Enumerable.Repeat((byte)143, 10).ToArray());
+            _maskAsBytes = Enumerable.Repeat((byte) 143, 10).ToArray();
+            _bitMask = new Core.Data.BitMask(_maskAsBytes);
         }
 
         // tests
@@ -73,11 +74,12 @@ namespace Vault.Tests.VaultStream
         public byte[] SetValueOf(int index, bool value)
         {
             _bitMask.SetValueOf(index, value);
-            return _bitMask.Bytes;
+            return _maskAsBytes;
         }
 
         // fields
 
         private Core.Data.BitMask _bitMask;
+        private byte[] _maskAsBytes;
     }
 }

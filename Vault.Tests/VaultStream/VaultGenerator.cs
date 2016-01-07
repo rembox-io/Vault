@@ -12,9 +12,9 @@ namespace Vault.Tests.VaultStream
             _writer = new BinaryWriter(_stream);
         }
 
-        public VaultGenerator InitializeVault()
+        public VaultGenerator InitializeVault(VaultConfiguration configuration)
         {
-            var buffer = new byte[Constants.VaultMetadataSize];
+            var buffer = new byte[configuration.VaultMetadataSize];
             for (int i = 0; i < buffer.Length; i++)
                 buffer[i] = 1;
 

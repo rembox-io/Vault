@@ -13,7 +13,7 @@ namespace Vault.Core.Data
             _maskLength = maskLength;
         }
 
-        public byte[] Bytes => (byte[])_byteArray.Clone();
+        public byte[] Bytes => _byteArray;
 
         public bool GetValueOf(int indexOfBit)
         {
