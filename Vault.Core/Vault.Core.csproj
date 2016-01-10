@@ -47,6 +47,7 @@
     <Compile Include="Data\DataService.cs" />
     <Compile Include="Data\Range.cs" />
     <Compile Include="Data\VaultConfiguration.cs" />
+    <Compile Include="Data\VaultInfo.cs" />
     <Compile Include="Data\VaultStream.cs" />
     <Compile Include="Exceptions\VaultException.cs" />
     <Compile Include="Structure\EntityInfo.cs" />

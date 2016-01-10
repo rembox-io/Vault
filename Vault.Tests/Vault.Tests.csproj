@@ -36,8 +36,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="EasyAssertions, Version=1.0.0.0, Culture=neutral, PublicKeyToken=439de676be7d1690, processorArchitecture=MSIL">
+      <HintPath>..\packages\EasyAssertions.1.0.0\lib\net35\EasyAssertions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="nunit.framework, Version=2.6.4.14350, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SmartFormat, Version=1.0.0.0, Culture=neutral, PublicKeyToken=591bb943eec6993c, processorArchitecture=MSIL">
+      <HintPath>..\packages\EasyAssertions.1.0.0\lib\net35\SmartFormat.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />

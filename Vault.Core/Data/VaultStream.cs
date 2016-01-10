@@ -21,6 +21,9 @@ namespace Vault.Core.Data
         {
             var result = new List<BlockInfo>();
             var seaarchingBlockIndex = _startBlockIndex;
+
+            _vaultInfo = GetVaultInfo();
+
             while (seaarchingBlockIndex != -1)
             {
                 var block = GetBlockInfo(seaarchingBlockIndex);
@@ -33,7 +36,7 @@ namespace Vault.Core.Data
             }
 
             _allocated = result.Sum(p => p.Allocated);
-            _blocks = result.OrderBy(p=>p.Index).ToArray();
+            _blocks = result.OrderBy(p => p.Index).ToArray();
         }
 
         private BlockInfo GetBlockInfo(int blockIndex)
@@ -54,6 +57,15 @@ namespace Vault.Core.Data
             }
         }
 
+        internal VaultInfo GetVaultInfo()
+        {
+            _backStream.Seek(0, SeekOrigin.Begin);
+            var buffer = new byte[_vaultConfiguration.VaultMetadataSize];
+            _backStream.Read(buffer, 0, buffer.Length);
+
+            return new VaultInfo(buffer, _vaultConfiguration);
+        }
+
         internal void SetBlockLength(BlockInfo block, int blockLength)
         {
         }
@@ -63,9 +75,28 @@ namespace Vault.Core.Data
             throw new NotImplementedException();
         }
 
-        internal void ReleaseBlocks(BlockInfo[] blocksForRelease)
+        internal void ReleaseBlocks(params ushort[] blocksForRelease)
         {
+            var invalidIndexes = blocksForRelease.Where(p => _vaultInfo.NumbersOfAllocatedBlocks - 1 < p).ToArray();
+            if (invalidIndexes.Any())
+                throw new ArgumentException($"Can't release blocks with indexes:{string.Join(",", invalidIndexes)}");
 
+            foreach (var index in blocksForRelease)
+            {
+                _vaultInfo.Mask[index] = false;
+
+                var blockOffset = GetBlockOffset(index);
+                _backStream.Seek(blockOffset, SeekOrigin.Begin);
+
+                var info = new BlockInfo(index, 0, 0, BlockFlags.None);
+                var infoBuffer = info.ToBinary();
+                _backStream.Write(infoBuffer, 0, infoBuffer.Length);
+
+                var zeroArray = new byte[_vaultConfiguration.BlockContentSize];
+                _backStream.Write(zeroArray, 0, zeroArray.Length);
+            }
+
+            ApplayVaultInfo();
         }
 
         internal int GetBlockOffset(int blockIndex)
@@ -123,6 +154,14 @@ namespace Vault.Core.Data
             return (int) result;
         }
 
+        internal void ApplayVaultInfo()
+        {
+            var bytes = _vaultInfo.ToBinary((short)_vaultConfiguration.VaultMetadataSize);
+
+            _backStream.Seek(0, SeekOrigin.Begin);
+            _backStream.Write(bytes, 0, bytes.Length);
+        }
+
         #region Stream Impl
 
         public override void Flush()
@@ -157,7 +196,7 @@ namespace Vault.Core.Data
             if (value > Length)
             {
                 var numberOfBlocksForRelease = _blocks.Length - numberOfRequiredBlocks;
-                var blocksForRelease = _blocks.Skip(_blocks.Length - numberOfBlocksForRelease).ToArray();
+                var blocksForRelease = _blocks.Skip(_blocks.Length - numberOfBlocksForRelease).Select(p=>p.Index).ToArray();
 
                 ReleaseBlocks(blocksForRelease);
 
@@ -182,7 +221,7 @@ namespace Vault.Core.Data
             foreach (var range in ranges)
             {
                 _backStream.Seek(range.From, SeekOrigin.Begin);
-;               _backStream.Read(buffer, offset, range.Length);
+                _backStream.Read(buffer, offset, range.Length);
                 offset += range.Length;
                 numberOfreadedBytes += range.Length;
             }
@@ -224,6 +263,7 @@ namespace Vault.Core.Data
         private int _baseOffset = 0;
         private int _allocated = 0;
         private BlockInfo[] _blocks;
+        private VaultInfo _vaultInfo;
 
         private readonly Stream _backStream;
         private readonly int _startBlockIndex;

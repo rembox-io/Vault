@@ -6,6 +6,8 @@
 
         public int BlockFullSize { get; set; }
         public int BlockMetadataSize { get; set; }
+        public int VaultMaskSize { get; set; }
+
         public int BlockContentSize => BlockFullSize - BlockMetadataSize;
     }
 }

@@ -1,6 +1,9 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using EasyAssertions;
 using NUnit.Framework;
 using Vault.Core.Data;
 using Vault.Core.Tools;
@@ -15,7 +18,8 @@ namespace Vault.Tests.VaultStream
         [SetUp]
         public void TestSetup()
         {
-            _stream = new Core.Data.VaultStream(GetVaultStream(), 1, VaultConfiguration);
+            _backStream = GetVaultStream();
+            _stream = new Core.Data.VaultStream(_backStream, 1, VaultConfiguration);
         }
 
         // tests
@@ -83,35 +87,35 @@ namespace Vault.Tests.VaultStream
         {
             return new[]
             {
-                new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 5))
+                new TestCaseData(_backStream, 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 5))
                     .SetName("1. Корректный поиск в первом блоке")
                     .Returns(new Range(201, 206)),
 
-                new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 56))
+                new TestCaseData(_backStream, 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 56))
                     .SetName("2. Выход за пределый правой части границы")
                     .Returns(new Range(201, 256)),
 
-                new TestCaseData(GetVaultStream(), 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 55))
+                new TestCaseData(_backStream, 1, VaultConfiguration.BlockContentSize, 0, new Range(0, 55))
                     .SetName("3. Ровно в границах блока")
                     .Returns(new Range(201, 256)),
 
-                new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(56, 110))
+                new TestCaseData(_backStream, 2, VaultConfiguration.BlockContentSize, 1, new Range(56, 110))
                     .SetName("4. Ровно в границах второго блока")
                     .Returns(new Range(266, 320)),
 
-                new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 100))
+                new TestCaseData(_backStream, 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 100))
                     .SetName("5. Внутри границ второго блока")
                     .Returns(new Range(270, 310)),
 
-                new TestCaseData(GetVaultStream(), 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 120))
+                new TestCaseData(_backStream, 2, VaultConfiguration.BlockContentSize, 1, new Range(60, 120))
                     .SetName("6. Выход за границы второго блока")
                     .Returns(new Range(270, 320)),
 
-                new TestCaseData(GetVaultStream(), 3, 20, 2, new Range(110, 130))
+                new TestCaseData(_backStream, 3, 20, 2, new Range(110, 130))
                     .SetName("7. Ровно в границах не полного третьего блока")
                     .Returns(new Range(329, 349)),
 
-                new TestCaseData(GetVaultStream(), 3, 20, 2, new Range(110, 135))
+                new TestCaseData(_backStream, 3, 20, 2, new Range(110, 135))
                     .SetName("8. Выход за границы не полного третьего блока")
                     .Returns(new Range(329, 349)),
             };
@@ -200,13 +204,80 @@ namespace Vault.Tests.VaultStream
         }
         #endregion
 
+        #region VaultStream.ReleaseBlocks
+
+        public static IEnumerable ReleaseBlock_TestData()
+        {
+            Func<int[], VaultInfo> getVaultInfoWIthoutBlocksInMask = (idList) =>
+            {
+                var vaultInfo = new VaultInfo("test vault name", VaultInfoFlags.None,
+                    new Core.Data.BitMask(new byte[VaultConfiguration.VaultMaskSize]), 4);
+                for (int i = 0; i < 4; i++)
+                    vaultInfo.Mask[i] = !idList.Contains(i);
+                return vaultInfo;
+            };
+
+            // result 1
+            var vaultInfo1 = getVaultInfoWIthoutBlocksInMask(new[] {1});
+            var result1 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo1)
+                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] {0}, isFirstBlock: false, isLastBlock: false)
+                .WriteBlock(continuation: 3, pattern: Pattern2)
+                .WriteBlock(allocated: 20, pattern: Pattern3)
+                .GetContentWithoutVaultInfo();
+
+            // result 2
+            var vaultInfo2 = getVaultInfoWIthoutBlocksInMask(new[] {1,2});
+            var result2 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo1)
+                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] {0}, isFirstBlock: false, isLastBlock: false)
+                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] {0}, isFirstBlock: false, isLastBlock: false)
+                .WriteBlock(allocated: 20, pattern: Pattern3)
+                .GetContentWithoutVaultInfo();
+
+            return new[]
+            {
+                new TestCaseData(new ushort[] {1}, vaultInfo1.Mask.Bytes, result1)
+                    .SetName("1. Освобождение блока #1"),
+                new TestCaseData(new ushort[] {1, 2}, vaultInfo2.Mask.Bytes, result2)
+                    .SetName("2. Освобождение двух блока"),
+                new TestCaseData(new ushort[] {4}, vaultInfo1.Mask.Bytes, result1)
+                    .SetName("3. Нельзя освободить несуществующий блок")
+                    .Throws(typeof(ArgumentException)),
+            };
+        }
+
+        [Test, TestCaseSource(typeof(VaultStreamTests), nameof(ReleaseBlock_TestData))]
+        public void ReleaseBlock(ushort[] blocksToRelease, byte[] resultBitMask, byte[] blocksContent)
+        {
+            // act
+            _stream.ReleaseBlocks(blocksToRelease);
+
+            // assert prepeare
+            var vaultInfo = _stream.GetVaultInfo();
+            _backStream.Seek(VaultConfiguration.VaultMetadataSize, SeekOrigin.Begin);
+            var buffer = new byte[VaultConfiguration.BlockFullSize * vaultInfo.NumbersOfAllocatedBlocks];
+            _backStream.Read(buffer, 0, buffer.Length);
+
+            // assert
+            vaultInfo.Mask.Bytes.ShouldMatch(resultBitMask);
+            buffer.ShouldMatch(blocksContent);
+        }
+
+        #endregion
+
         // private methods
 
-        private static Stream GetVaultStream()
+        private static MemoryStream GetVaultStream()
         {
+            Core.Data.BitMask mask = new Core.Data.BitMask(new byte[64]);
+            for (int i = 0; i < 4; i++)
+                mask[i] = true;
+
+            var vaultInfo = new VaultInfo("test vault name", VaultInfoFlags.Encryptable | VaultInfoFlags.Versionable, mask, 4);
 
             return new VaultGenerator()
-                .InitializeVault(VaultConfiguration)
+                .InitializeVault(VaultConfiguration, vaultInfo)
                 .WriteBlock(continuation: 2, pattern: Pattern1)
                 .WriteBlock(continuation: 3, pattern: Pattern2)
                 .WriteBlock(allocated: 20, pattern: Pattern3)
@@ -215,14 +286,17 @@ namespace Vault.Tests.VaultStream
         
         // fields
 
-        private Core.Data.VaultStream _stream;
+        private static Core.Data.VaultStream _stream;
+        private static MemoryStream _backStream;
 
         private readonly static VaultConfiguration VaultConfiguration = new VaultConfiguration()
         #region Inititalize variable
         {
                 BlockFullSize = 64,
                 BlockMetadataSize = 9,
-                VaultMetadataSize = 128
+
+                VaultMetadataSize = 128,
+                VaultMaskSize = 64
             };
         #endregion
 
