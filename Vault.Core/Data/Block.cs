@@ -57,6 +57,31 @@ namespace Vault.Core.Data
         }
 
         public BlockFlags Flags { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as BlockInfo);
+        }
+
+        protected bool Equals(BlockInfo other)
+        {
+            return Index == other.Index
+                   && Continuation == other.Continuation
+                   && Allocated == other.Allocated
+                   && Flags == other.Flags;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Index.GetHashCode();
+                hashCode = (hashCode*397) ^ Continuation.GetHashCode();
+                hashCode = (hashCode*397) ^ Allocated;
+                hashCode = (hashCode*397) ^ (int) Flags;
+                return hashCode;
+            }
+        }
     }
 
     [Flags]

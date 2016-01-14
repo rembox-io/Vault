@@ -26,7 +26,7 @@ namespace Vault.Core.Data
             return (_byteArray[indexOfByte] & mask) == mask;
         }
 
-        public void SetValueOf(int indexOfBit, bool value)
+        public BitMask SetValueOf(int indexOfBit, bool value)
         {
             if (indexOfBit > _maskLength - 1)
                 throw new ArgumentException(nameof(indexOfBit));
@@ -39,6 +39,8 @@ namespace Vault.Core.Data
                 value
                     ? _byteArray[indexOfByte] |= @byte
                     : _byteArray[indexOfByte] &= (byte) ~@byte;
+
+            return this;
         }
 
         public bool this[int index]

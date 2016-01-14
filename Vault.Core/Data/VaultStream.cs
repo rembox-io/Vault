@@ -36,7 +36,7 @@ namespace Vault.Core.Data
             }
 
             _allocated = result.Sum(p => p.Allocated);
-            _blocks = result.OrderBy(p => p.Index).ToArray();
+            _blocks = result.OrderBy(p => p.Index).ToList();
         }
 
         private BlockInfo GetBlockInfo(int blockIndex)
@@ -70,9 +70,30 @@ namespace Vault.Core.Data
         {
         }
 
-        internal void AllocateBlocks(int numberOfBlocksToAllocated)
+        internal BlockInfo[] AllocateBlocks(int numberOfBlocksToAllocated)
         {
-            throw new NotImplementedException();
+            var resultIndexes = new BlockInfo[numberOfBlocksToAllocated];
+            for (int i = 0; i < numberOfBlocksToAllocated; i++)
+            {
+                var block = new BlockInfo();
+                block.Index = (ushort) _vaultInfo.NumbersOfAllocatedBlocks;
+                block.Flags = BlockFlags.None;
+                var blockBinary = block.ToBinary();
+
+                _backStream.Seek(0, SeekOrigin.End);
+
+                _backStream.Write(blockBinary, 0, blockBinary.Length);
+                _backStream.Write(Enumerable.Repeat((byte)0, _vaultConfiguration.BlockContentSize).ToArray(), 0, _vaultConfiguration.BlockContentSize);
+
+                resultIndexes[i] = block;
+
+                _vaultInfo.Mask[block.Index] = true;
+                _vaultInfo.NumbersOfAllocatedBlocks++;
+            }
+
+            ApplayVaultInfo();
+
+            return resultIndexes;
         }
 
         internal void ReleaseBlocks(params ushort[] blocksForRelease)
@@ -112,7 +133,7 @@ namespace Vault.Core.Data
             var endBlockIndex = (Position + count)/ _vaultConfiguration.BlockContentSize;
 
             var result = new List<Range>();
-            for (int i = startBlockIndex; i <= endBlockIndex && i < _blocks.Length; i++)
+            for (int i = startBlockIndex; i <= endBlockIndex && i < _blocks.Count; i++)
             {
                 var block = _blocks[i];
                 var range = GetBackRangeForBlock(block.Index, block.Allocated, i, searchRange);
@@ -195,8 +216,8 @@ namespace Vault.Core.Data
 
             if (value > Length)
             {
-                var numberOfBlocksForRelease = _blocks.Length - numberOfRequiredBlocks;
-                var blocksForRelease = _blocks.Skip(_blocks.Length - numberOfBlocksForRelease).Select(p=>p.Index).ToArray();
+                var numberOfBlocksForRelease = _blocks.Count - numberOfRequiredBlocks;
+                var blocksForRelease = _blocks.Skip(_blocks.Count - numberOfBlocksForRelease).Select(p=>p.Index).ToArray();
 
                 ReleaseBlocks(blocksForRelease);
 
@@ -204,7 +225,7 @@ namespace Vault.Core.Data
             }
             else
             {
-                var numberOfBlocksToAllocated = numberOfRequiredBlocks - _blocks.Length;
+                var numberOfBlocksToAllocated = numberOfRequiredBlocks - _blocks.Count;
 
                 AllocateBlocks(numberOfBlocksToAllocated);
 
@@ -253,7 +274,8 @@ namespace Vault.Core.Data
         public override bool CanSeek => true;
         public override bool CanWrite => true;
 
-        internal int BlockCount => _blocks.Length;
+        internal int BlockCount => _blocks.Count;
+        internal Stream BackStream => _backStream;
 
         #endregion
 
@@ -262,7 +284,7 @@ namespace Vault.Core.Data
         private long _currentPosition = 0;
         private int _baseOffset = 0;
         private int _allocated = 0;
-        private BlockInfo[] _blocks;
+        private List<BlockInfo> _blocks;
         private VaultInfo _vaultInfo;
 
         private readonly Stream _backStream;
