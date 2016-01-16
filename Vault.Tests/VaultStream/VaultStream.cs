@@ -328,6 +328,78 @@ namespace Vault.Tests.VaultStream
 
         #endregion
 
+        #region VaultStream.GetLength And SetLength
+
+        [Test]
+        public void GetLength()
+        {
+            // act
+            var length = _stream.Length;
+
+            // assert
+            length.ShouldBe(130L);
+        }
+
+        public static IEnumerable SetLength_TestData()
+        {
+            return new[]
+            {
+                new TestCaseData(55)
+                    .SetName("1. Сократили до одного блока.")
+                    .Returns(new[] {new BlockInfo(1, 0, 55, BlockFlags.IsFirstBlock | BlockFlags.IsLastBlock)}),
+
+                new TestCaseData(15)
+                    .SetName("2. Сократили до не полного одного блока.")
+                    .Returns(new[] {new BlockInfo(1, 0, 15, BlockFlags.IsFirstBlock | BlockFlags.IsLastBlock)}),
+
+                new TestCaseData(75)
+                    .SetName("3. Сократили до не полных двух блоков.")
+                    .Returns(new[]
+                    {new BlockInfo(1, 2, 55, BlockFlags.IsFirstBlock), new BlockInfo(2, 0, 20, BlockFlags.IsLastBlock)}),
+
+                new TestCaseData(120)
+                    .SetName("3. Сократили до не полных трех блоков.")
+                    .Returns(new[]
+                    {
+                        new BlockInfo(1, 2, 55, BlockFlags.IsFirstBlock), new BlockInfo(2, 3, 55, BlockFlags.None),
+                        new BlockInfo(3, 0, 10, BlockFlags.IsLastBlock)
+                    }),
+
+                new TestCaseData(170)
+                    .SetName("4. Расширили до неполных 4 блоков.")
+                    .Returns(new BlockListGenerator()
+                        .Add(1, 2, 55, BlockFlags.IsFirstBlock)
+                        .Add(2, 3, 55, BlockFlags.None)
+                        .Add(3, 4, 55, BlockFlags.None)
+                        .Add(4, 0, 5, BlockFlags.IsLastBlock).ToArray()),
+
+                new TestCaseData(275)
+                    .SetName("4. Расширили до полнных 5 блоков.")
+                    .Returns(new BlockListGenerator()
+                        .Add(1, 2, 55, BlockFlags.IsFirstBlock)
+                        .Add(2, 3, 55, BlockFlags.None)
+                        .Add(3, 4, 55, BlockFlags.None)
+                        .Add(4, 5, 55, BlockFlags.None)
+                        .Add(5, 0, 55, BlockFlags.IsLastBlock)
+                        .ToArray())
+
+            };
+        }
+
+        [Test, TestCaseSource(typeof(VaultStreamTests), nameof(SetLength_TestData))]
+        public BlockInfo[] SetLength(long newLengthValue)
+        {
+            // act
+            _stream.SetLength(newLengthValue);
+
+            // assert
+            _stream.Length.ShouldBe(newLengthValue);
+            var result = _stream.Blocks;
+            return result;
+        }
+
+        #endregion
+
         // private methods
 
         private static MemoryStream GetVaultStream()
@@ -337,8 +409,8 @@ namespace Vault.Tests.VaultStream
             return new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo)
                 .WriteBlock(continuation: 2, pattern: Pattern1)
-                .WriteBlock(continuation: 3, pattern: Pattern2)
-                .WriteBlock(allocated: 20, pattern: Pattern3)
+                .WriteBlock(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlock(allocated: 20, pattern: Pattern3, isFirstBlock: false)
                 .GetStream();
         }
 

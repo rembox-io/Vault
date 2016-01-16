@@ -68,6 +68,8 @@ namespace Vault.Core.Data
 
         internal void SetBlockLength(BlockInfo block, int blockLength)
         {
+            block.Allocated = blockLength;
+            ApplayBlockInfo(block);
         }
 
         internal BlockInfo[] AllocateBlocks(int numberOfBlocksToAllocated)
@@ -183,6 +185,14 @@ namespace Vault.Core.Data
             _backStream.Write(bytes, 0, bytes.Length);
         }
 
+        internal void ApplayBlockInfo(BlockInfo blockInfo)
+        {
+            var binary = blockInfo.ToBinary();
+            var offset = GetBlockOffset(blockInfo.Index);
+            _backStream.Seek(offset, SeekOrigin.Begin);
+            _backStream.Write(binary, 0, binary.Length);
+        }
+
         #region Stream Impl
 
         public override void Flush()
@@ -214,25 +224,63 @@ namespace Vault.Core.Data
 
             int numberOfRequiredBlocks = GetNumberOfBlocksForLength(value);
 
-            if (value > Length)
+            if (value < Length)
             {
                 var numberOfBlocksForRelease = _blocks.Count - numberOfRequiredBlocks;
-                var blocksForRelease = _blocks.Skip(_blocks.Count - numberOfBlocksForRelease).Select(p=>p.Index).ToArray();
+                var blocksForRelease = _blocks.Skip(_blocks.Count - numberOfBlocksForRelease).ToArray();
 
-                ReleaseBlocks(blocksForRelease);
+                ReleaseBlocks(blocksForRelease.Select(p => p.Index).ToArray());
+                foreach (var block in blocksForRelease)
+                    _blocks.Remove(block);
 
-                SetBlockLength(_blocks.Last(), (int)value%_vaultConfiguration.BlockContentSize);
+                ReinitializeLastBlock(value);
             }
             else
             {
                 var numberOfBlocksToAllocated = numberOfRequiredBlocks - _blocks.Count;
 
-                AllocateBlocks(numberOfBlocksToAllocated);
+                var allocatedBlocks = AllocateBlocks(numberOfBlocksToAllocated);
 
-                SetBlockLength(_blocks.Last(), (int)value% _vaultConfiguration.BlockContentSize);
+                if (allocatedBlocks.Length > 0)
+                {
+                    var lastBlock = _blocks.LastOrDefault();
+                    if (lastBlock != null)
+                    {
+                        lastBlock.Continuation = allocatedBlocks.First().Index;
+                        lastBlock.Allocated = _vaultConfiguration.BlockContentSize;
+                        lastBlock.Flags &= ~BlockFlags.IsLastBlock;
+                    }
+
+                    for (int i = 0; i < allocatedBlocks.Length - 1; i++)
+                    {
+                        allocatedBlocks[i].Continuation = allocatedBlocks[i + 1].Index;
+                        allocatedBlocks[i].Flags = BlockFlags.None;
+                        allocatedBlocks[i].Allocated = _vaultConfiguration.BlockContentSize;
+                    }
+                    _blocks.AddRange(allocatedBlocks);
+                }
+
+                ReinitializeLastBlock(value);
             }
+
+            _allocated = _blocks.Sum(p => p.Allocated);
         }
 
+        private void ReinitializeLastBlock(long value)
+        {
+            var lastBlock = _blocks.LastOrDefault();
+            if (lastBlock != null)
+            {
+                var odd = (int) value%_vaultConfiguration.BlockContentSize;
+                var size = (short) (value > 0
+                    ? odd == 0 ? _vaultConfiguration.BlockContentSize : odd
+                    : 0);
+
+                SetBlockLength(lastBlock, size);
+                lastBlock.Continuation = 0;
+                lastBlock.Flags |= BlockFlags.IsLastBlock;
+            }
+        }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -276,20 +324,18 @@ namespace Vault.Core.Data
 
         internal int BlockCount => _blocks.Count;
         internal Stream BackStream => _backStream;
-
+        internal BlockInfo[] Blocks => _blocks.ToArray();
         #endregion
 
         // private methods
 
-        private long _currentPosition = 0;
-        private int _baseOffset = 0;
-        private int _allocated = 0;
-        private List<BlockInfo> _blocks;
-        private VaultInfo _vaultInfo;
-
-        private readonly Stream _backStream;
-        private readonly int _startBlockIndex;
-        private readonly VaultConfiguration _vaultConfiguration;
+        private int _allocated;
         private long _position;
+        private VaultInfo _vaultInfo;
+        private List<BlockInfo> _blocks;
+
+        private readonly int _startBlockIndex;
+        private readonly Stream _backStream;
+        private readonly VaultConfiguration _vaultConfiguration;
     }
 }
