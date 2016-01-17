@@ -224,11 +224,11 @@ namespace Vault.Tests.VaultStream
             var blocks1 = new BlockListGenerator().Add(4, 0, 0, BlockFlags.None).Add(5, 0, 0, BlockFlags.None).ToArray();
             var expectedStreamContent1 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo1)
-                .WriteBlock(continuation: 2, pattern: Pattern1)
-                .WriteBlock(continuation: 3, pattern: Pattern2)
-                .WriteBlock(allocated: 20, pattern: Pattern3)
-                .WriteBlock(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
-                .WriteBlock(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isLastBlock: true, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
                 .GetContentWithoutVaultInfo();              
 
 
@@ -244,7 +244,7 @@ namespace Vault.Tests.VaultStream
             Core.Data.VaultStream stream,
             Core.Data.BitMask expectedVaultInfo,
             BlockInfo[] expectedBlockInfo,
-            byte[] streamContent)
+            byte[] expectedStreamContent)
         {
             // act
             var resultBlocks = stream.AllocateBlocks(numberOfBlocksToAllocate);
@@ -254,11 +254,11 @@ namespace Vault.Tests.VaultStream
             vaultInfo.Mask.Bytes.ShouldMatch(expectedVaultInfo.Bytes);
             resultBlocks.ShouldMatch(expectedBlockInfo);
 
-            var backStreamContent = ((MemoryStream) stream.BackStream)
+            var actualStreamContent = ((MemoryStream) stream.BackStream)
                 .ToArray()
                 .Skip(VaultConfiguration.VaultMetadataSize)
                 .ToArray();
-            backStreamContent.ShouldMatch(streamContent);
+            actualStreamContent.ShouldMatch(expectedStreamContent);
         }
 
         #endregion
@@ -280,21 +280,21 @@ namespace Vault.Tests.VaultStream
             var vaultInfo1 = getVaultInfoWIthoutBlocksInMask(new[] { 1 });
             var result1 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo1)
-                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
+                .WriteBlockWithPattern(continuation: 0, allocated: 0, pattern: new byte[] {0}, isFirstBlock: false,
                     isLastBlock: false)
-                .WriteBlock(continuation: 3, pattern: Pattern2)
-                .WriteBlock(allocated: 20, pattern: Pattern3)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isLastBlock: true, isFirstBlock: false)
                 .GetContentWithoutVaultInfo();
 
             // result 2
             var vaultInfo2 = getVaultInfoWIthoutBlocksInMask(new[] { 1, 2 });
             var result2 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo1)
-                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
+                .WriteBlockWithPattern(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
                     isLastBlock: false)
-                .WriteBlock(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
+                .WriteBlockWithPattern(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
                     isLastBlock: false)
-                .WriteBlock(allocated: 20, pattern: Pattern3)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false, isLastBlock: true)
                 .GetContentWithoutVaultInfo();
 
             return new[]
@@ -400,6 +400,130 @@ namespace Vault.Tests.VaultStream
 
         #endregion
 
+        #region VaultStream.Write
+
+        public static IEnumerable Write_TestData()
+        {
+            Func<VaultInfo> vaultInfo = () => new VaultInfo(TestVaultName, TestVaultInfoFlags, GetVaultMask(), 4);
+
+            // result 1
+            var block1Content = VaultGenerator.GetByteBufferFromPattern(Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var localPattern = new byte[] {101, 102, 103, 104, 105};
+            Array.Copy(localPattern, 0, block1Content, 0, 5);
+
+            var stream1 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo())
+                .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block1Content)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .GetStream();
+
+            // result 2
+            var block2Content = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var stream2 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo())
+                .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block2Content)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .GetStream();
+
+            // result 3
+            var writeContent3 = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize * 2, VaultConfiguration.BlockContentSize * 2);
+            var singleBlock3 = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var stream3 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo())
+                .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: singleBlock3)
+                .WriteBlockWithContent(continuation: 3, flags: BlockFlags.None, content: singleBlock3)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .GetStream();
+
+            // result 4                                                                     
+            var writeContent4 = VaultGenerator.GetByteBufferFromPattern(localPattern, 10, 10);
+
+            var block1 = VaultGenerator.GetByteBufferFromPattern(Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            Array.Copy(localPattern, 0, block1, 50, 5);
+
+            var block2 = VaultGenerator.GetByteBufferFromPattern(Pattern2, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            Array.Copy(localPattern, 0, block2, 0, 5);
+
+            var stream4 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo())
+                .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block1)
+                .WriteBlockWithContent(continuation: 3, flags: BlockFlags.None, content: block2)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .GetStream();
+
+            // result 5
+            var writeContent5 = VaultGenerator.GetByteBufferFromPattern(localPattern, 10, 10);
+            var block3Content5 = VaultGenerator.GetByteBufferFromPattern(Pattern3, 30, 30);
+            Array.Copy(localPattern, 0, block3Content5, 20, 5);
+            Array.Copy(localPattern, 0, block3Content5, 25, 5);
+
+            var stream5 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, vaultInfo())
+                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithContent(0, 30, BlockFlags.IsLastBlock, block3Content5)
+                .GetStream();
+
+            // result 6
+            var writeContent6 = VaultGenerator.GetByteBufferFromPattern(localPattern, 55, 55);
+            var block3Content6 = VaultGenerator.GetByteBufferFromPattern(Pattern3, 55, 55);
+
+            Array.Copy(writeContent6, 0, block3Content6, 20, 35);
+            var block4Content6 = VaultGenerator.GetByteBufferFromPattern(new byte[] {0}, 55, 55);
+            Array.Copy(writeContent6, 0, block4Content6, 0, 20);
+            
+
+            var stream6 = new VaultGenerator()
+                .InitializeVault(VaultConfiguration, new VaultInfo(TestVaultName, TestVaultInfoFlags, GetVaultMask().SetValueOf(4, true), 5))
+                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithContent(4, 55, BlockFlags.None, block3Content6)
+                .WriteBlockWithContent(0, 20, BlockFlags.IsLastBlock, block4Content6)
+                .GetStream();
+
+
+            return new[]
+            {
+                new TestCaseData(0, localPattern, 0, 5)
+                    .SetName("1. Перезапись первых пыти байт в самом налаче файла.")
+                    .Returns(stream1.ToArray()), 
+
+                new TestCaseData(0, block2Content, 0, block2Content.Length)
+                    .SetName("2. Перезапись полного первого блока.")
+                    .Returns(stream2.ToArray()),
+
+                new TestCaseData(0, writeContent3, 0, writeContent3.Length)
+                    .SetName("3. Перезапись двух первых блоков.")
+                    .Returns(stream3.ToArray()),
+
+                new TestCaseData(50, writeContent4, 0, writeContent4.Length)
+                    .SetName("4. Последние 5 байт первого блока и первые 5 байт второго блока.")
+                    .Returns(stream4.ToArray()),
+
+                new TestCaseData(130, writeContent5, 0, writeContent5.Length)
+                    .SetName("5. Дописывание в конец файла без выделения нового блока.")
+                    .Returns(stream5.ToArray()),
+
+                new TestCaseData(130, writeContent6, 0, writeContent6.Length)
+                    .SetName("6. Дописывание в конец файла с выделением нового блока.")
+                    .Returns(stream6.ToArray())
+            };
+        }
+
+        [Test]
+        [TestCaseSource(typeof(VaultStreamTests), nameof(Write_TestData))]
+        public byte[] WriteTests(int position, byte[] binary, int offset, int count)
+        {
+            _stream.Position = position;
+            _stream.Write(binary, offset, count);
+            var result = _backStream.ToArray();
+            return result;
+        }
+
+        #endregion
+
         // private methods
 
         private static MemoryStream GetVaultStream()
@@ -408,9 +532,9 @@ namespace Vault.Tests.VaultStream
 
             return new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo)
-                .WriteBlock(continuation: 2, pattern: Pattern1)
-                .WriteBlock(continuation: 3, pattern: Pattern2, isFirstBlock: false)
-                .WriteBlock(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
                 .GetStream();
         }
 
@@ -429,7 +553,6 @@ namespace Vault.Tests.VaultStream
 
         private static readonly VaultConfiguration VaultConfiguration = new VaultConfiguration()
             #region Inititalize variable
-
         {
             BlockFullSize = 64,
             BlockMetadataSize = 9,

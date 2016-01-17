@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using Vault.Core.Exceptions;
@@ -17,7 +18,7 @@ namespace Vault.Core.Data
             ValidateAndCalculating();
         }
 
-        private void ValidateAndCalculating()
+        internal void ValidateAndCalculating()
         {
             var result = new List<BlockInfo>();
             var seaarchingBlockIndex = _startBlockIndex;
@@ -39,7 +40,7 @@ namespace Vault.Core.Data
             _blocks = result.OrderBy(p => p.Index).ToList();
         }
 
-        private BlockInfo GetBlockInfo(int blockIndex)
+        internal BlockInfo GetBlockInfo(int blockIndex)
         {
             try
             {
@@ -51,7 +52,7 @@ namespace Vault.Core.Data
                 var result = new BlockInfo(buffer);
                 return result;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
                 return null;
             }
@@ -193,11 +194,28 @@ namespace Vault.Core.Data
             _backStream.Write(binary, 0, binary.Length);
         }
 
+        private void ReinitializeLastBlock(long value)
+        {
+            var lastBlock = _blocks.LastOrDefault();
+            if (lastBlock != null)
+            {
+                var odd = (int)value % _vaultConfiguration.BlockContentSize;
+                var size = (short)(value > 0
+                    ? odd == 0 ? _vaultConfiguration.BlockContentSize : odd
+                    : 0);
+
+                SetBlockLength(lastBlock, size);
+                lastBlock.Continuation = 0;
+                lastBlock.Flags |= BlockFlags.IsLastBlock;
+
+                ApplayBlockInfo(lastBlock);
+            }
+        }
+
         #region Stream Impl
 
         public override void Flush()
         {
-            throw new System.NotImplementedException();
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -249,6 +267,7 @@ namespace Vault.Core.Data
                         lastBlock.Continuation = allocatedBlocks.First().Index;
                         lastBlock.Allocated = _vaultConfiguration.BlockContentSize;
                         lastBlock.Flags &= ~BlockFlags.IsLastBlock;
+                        ApplayBlockInfo(lastBlock);
                     }
 
                     for (int i = 0; i < allocatedBlocks.Length - 1; i++)
@@ -256,6 +275,7 @@ namespace Vault.Core.Data
                         allocatedBlocks[i].Continuation = allocatedBlocks[i + 1].Index;
                         allocatedBlocks[i].Flags = BlockFlags.None;
                         allocatedBlocks[i].Allocated = _vaultConfiguration.BlockContentSize;
+                        ApplayBlockInfo(allocatedBlocks[i]);
                     }
                     _blocks.AddRange(allocatedBlocks);
                 }
@@ -264,23 +284,7 @@ namespace Vault.Core.Data
             }
 
             _allocated = _blocks.Sum(p => p.Allocated);
-        }
-
-        private void ReinitializeLastBlock(long value)
-        {
-            var lastBlock = _blocks.LastOrDefault();
-            if (lastBlock != null)
-            {
-                var odd = (int) value%_vaultConfiguration.BlockContentSize;
-                var size = (short) (value > 0
-                    ? odd == 0 ? _vaultConfiguration.BlockContentSize : odd
-                    : 0);
-
-                SetBlockLength(lastBlock, size);
-                lastBlock.Continuation = 0;
-                lastBlock.Flags |= BlockFlags.IsLastBlock;
-            }
-        }
+        }        
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -300,7 +304,21 @@ namespace Vault.Core.Data
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            throw new System.NotImplementedException();
+            Contract.Requires(count > 0);
+            Contract.Requires(buffer != null);
+            Contract.Requires(buffer.Length >= offset + count);
+
+            var newStreamLength = Position + count;
+            if(newStreamLength > Length)
+                SetLength(newStreamLength);
+
+            var ranges = GetBackStreaamRangesToCopy(count);
+            foreach (var range in ranges)
+            {
+                _backStream.Seek(range.From, SeekOrigin.Begin);
+                _backStream.Write(buffer, offset, range.Length);
+                offset += range.Length;
+            }
         }
 
         public override long Length => _allocated;
@@ -310,7 +328,7 @@ namespace Vault.Core.Data
             get { return _position; }
             set
             {
-                if(value <0 || Length - 1< value )
+                if(value <0 || Length < value )
                     throw new ArgumentOutOfRangeException(nameof(value));
 
                 _position = value;

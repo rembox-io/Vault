@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.IO;
 using Vault.Core.Data;
 using Vault.Core.Tools;
 
@@ -29,14 +32,12 @@ namespace Vault.Tests.VaultStream
 
             _writer.Write(buffer);
 
-            WriteBlock(pattern: new byte[] {10, 11, 12},
-                isMasterBlock: true,
-                isFirstBlock: true);
+            WriteBlockWithPattern(pattern: new byte[] {10, 11, 12}, isMasterBlock: true);
 
             return this;
         }
 
-        public VaultGenerator WriteBlock(ushort continuation = 0, int allocated = DefaultBlockCOntentSize, byte[] pattern = null, bool isFirstBlock = true, bool isMasterBlock = false, bool? isLastBlock = null)
+        public VaultGenerator WriteBlockWithPattern(ushort continuation = 0, int allocated = DefaultBlockCOntentSize, byte[] pattern = null, bool isFirstBlock = true, bool isMasterBlock = false, bool? isLastBlock = null)
         {
             if (pattern == null)
                 pattern = new byte[] {1, 2, 3};
@@ -57,6 +58,27 @@ namespace Vault.Tests.VaultStream
             var buffer = GetByteBufferFromPattern(pattern, DefaultBlockCOntentSize, allocatedSize);
 
             _writer.Write(blockInfo.ToBinary());
+            _writer.Write(buffer);
+
+            _currentIndex++;
+
+            return this;
+        }
+
+        public VaultGenerator WriteBlockWithContent(ushort continuation, int allocated = DefaultBlockCOntentSize, BlockFlags flags = BlockFlags.None, byte[] content = null)
+        {
+            Contract.Requires(content != null);
+            Contract.Requires(content.Length == allocated);
+
+            var blockInfo = new BlockInfo(_currentIndex, continuation, allocated, flags);
+
+            var binary = blockInfo.ToBinary();
+            var buffer = new byte[_configuration.BlockContentSize];
+
+            // ReSharper disable once AssignNullToNotNullAttribute
+            // ReSharper disable once PossibleNullReferenceException
+            Array.Copy(content, 0, buffer, 0, content.Length);
+            _writer.Write(binary);
             _writer.Write(buffer);
 
             _currentIndex++;
