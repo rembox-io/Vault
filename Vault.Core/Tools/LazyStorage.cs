@@ -12,6 +12,8 @@ namespace Vault.Core.Tools
             _getter = getter;
         }
 
+        public int Count => _storage.Count;
+
         public TResult this[TKey index] => Get(index);
 
         private TResult Get(TKey key)

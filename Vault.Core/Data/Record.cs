@@ -1,26 +1,28 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Text;
 using Vault.Core.Tools;
 
 namespace Vault.Core.Data
 {
-    internal class Record
+    public class Record
     {
         public Record()
         {
             
         }
 
-        public Record(byte[] buffer)
+        public Record(byte[] binary)
         {
-            Contract.Ensures(buffer.Length == FullRecordSize);
+            Contract.Requires(binary != null);
+            Contract.Requires(binary.Length > MinimumRecordRawContentSize);
 
-            buffer.Read(r =>
+            binary.Read(r =>
             {
                 Id = r.ReadUInt16();
-                Flags = (RecordFlags)r.ReadByte();
-                var contentLength = r.ReadInt16();
-                Content = r.ReadBytes(contentLength);
+                Flags = (RecordFlags) r.ReadByte();
+                Name = r.ReadString2();
+                Content = r.ReadBytes(binary.Length - MetadataSize - Encoding.UTF8.GetByteCount(Name));
             });
         }
 
@@ -28,36 +30,35 @@ namespace Vault.Core.Data
 
         public RecordFlags Flags { get; set; }
 
+        public string Name { get; set; }
+
         public byte[] Content { get; set; }
 
         public byte[] ToBinary()
         {
-            Contract.Requires(Content.Length <= MaxContentSize);
-            var buffer = new byte[FullRecordSize];
-
+            var size = MetadataSize + Encoding.UTF8.GetByteCount(Name) + Content.Length;
+            var buffer = new byte[size];
             buffer.Write(w =>
             {
                 w.Write(Id);
                 w.Write((byte)Flags);
-                w.Write((short)Content.Length);
+                w.WriteString2(Name);
                 w.Write(Content);
             });
 
-            Contract.Ensures(buffer.Length == FullRecordSize);
+            Contract.Ensures(buffer != null);
+            Contract.Ensures(buffer.Length > MinimumRecordRawContentSize);
             return buffer;
         }
 
-        private const ushort FullRecordSize = 1024;
-        private const ushort MetadataSize = 5;
-        private const ushort MaxContentSize = FullRecordSize - MetadataSize;
+        private const int MetadataSize = 3;
+        private const int MinimumRecordRawContentSize = 6;
     }
 
     [Flags]
-    public enum RecordFlags : byte
+    public enum RecordFlags
     {
         IsDirectory = 1,
-        IsContentAsReference = 2,
-        IsFirstRecord = 4,
-        IsLastRecord = 8
+        IsReference = 2
     }
 }

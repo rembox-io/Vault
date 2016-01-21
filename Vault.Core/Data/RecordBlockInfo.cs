@@ -7,7 +7,5 @@
         public int NumberofAllocatedRecords { get; set; }
 
         public BitMask RecordMask { get; set; }
-
-
     }
 }

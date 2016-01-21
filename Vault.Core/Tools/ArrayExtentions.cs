@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Text;
 
@@ -48,5 +49,43 @@ namespace Vault.Core.Tools
             return result;
         }
 
+        public static byte[][] Split(this byte[] self, int chunkLength, bool collapseLastChunkToContent = false)
+        {
+            Contract.Requires(self != null);
+
+            int numberOfChunks = 0;
+            if (self.Length <= chunkLength)
+            {
+                numberOfChunks = 1;
+            }
+            else
+            {
+                numberOfChunks = self.Length/chunkLength;
+                if (self.Length%chunkLength > 0)
+                    numberOfChunks++;
+            }
+
+            var result = new byte[numberOfChunks][];
+            for (int i = 0; i < numberOfChunks; i++)
+            {
+                var from = i*chunkLength;
+                var to = from + chunkLength;
+                if (i == numberOfChunks - 1)
+                {
+                    to = from + self.Length%chunkLength;
+                    if (collapseLastChunkToContent)
+                    {
+                        result[i] = new byte[to];
+                    }
+                }
+                else
+                {
+                    result[i] = new byte[chunkLength];
+                }
+                Array.Copy(self, from, result[i], 0, to);
+            }
+
+            return result;
+        }
     }
 }

@@ -46,6 +46,7 @@
     <Compile Include="Data\Block.cs" />
     <Compile Include="Data\DataService.cs" />
     <Compile Include="Data\Range.cs" />
+    <Compile Include="Data\Chunk.cs" />
     <Compile Include="Data\Record.cs" />
     <Compile Include="Data\RecordBlockInfo.cs" />
     <Compile Include="Data\StructureService.cs" />
