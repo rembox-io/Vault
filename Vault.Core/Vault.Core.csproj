@@ -46,6 +46,9 @@
     <Compile Include="Data\Block.cs" />
     <Compile Include="Data\DataService.cs" />
     <Compile Include="Data\Range.cs" />
+    <Compile Include="Data\Record.cs" />
+    <Compile Include="Data\RecordBlockInfo.cs" />
+    <Compile Include="Data\StructureService.cs" />
     <Compile Include="Data\VaultConfiguration.cs" />
     <Compile Include="Data\VaultInfo.cs" />
     <Compile Include="Data\VaultStream.cs" />
@@ -55,6 +58,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Structure\Record.cs" />
     <Compile Include="Tools\ArrayExtentions.cs" />
+    <Compile Include="Tools\LazyStorage.cs" />
     <Compile Include="Tools\RangeIntersaction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
