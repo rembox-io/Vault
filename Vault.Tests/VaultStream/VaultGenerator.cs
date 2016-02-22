@@ -55,7 +55,7 @@ namespace Vault.Tests.VaultStream
 
             var allocatedSize = allocated < DefaultBlockCOntentSize ? allocated : DefaultBlockCOntentSize;
 
-            var buffer = GetByteBufferFromPattern(pattern, DefaultBlockCOntentSize, allocatedSize);
+            var buffer = Gc.GetByteBufferFromPattern(pattern, DefaultBlockCOntentSize, allocatedSize);
 
             _writer.Write(blockInfo.ToBinary());
             _writer.Write(buffer);
@@ -84,17 +84,6 @@ namespace Vault.Tests.VaultStream
             _currentIndex++;
 
             return this;
-        }
-
-        public static byte[] GetByteBufferFromPattern(byte[] pattern, int bufferSize, int numberOfWriteingBytes)
-        {
-            var buffer = new byte[bufferSize];
-            for (int i = 0; i < numberOfWriteingBytes; i++)
-            {
-                var patternIndex = (i + pattern.Length)%pattern.Length;
-                buffer[i] = pattern[patternIndex];
-            }
-            return buffer;
         }
 
         public MemoryStream GetStream()

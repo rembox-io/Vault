@@ -26,6 +26,14 @@ namespace Vault.Core.Data
             });
         }
 
+        public Record(ushort id, string name, RecordFlags flags, byte[] content)
+        {
+            Id = id;
+            Name = name;
+            Flags = flags;
+            Content = content;
+        }
+
         public ushort Id { get; set; }
 
         public RecordFlags Flags { get; set; }

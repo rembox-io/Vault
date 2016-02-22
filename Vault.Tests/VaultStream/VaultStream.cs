@@ -30,28 +30,28 @@ namespace Vault.Tests.VaultStream
         {
             var result2 = new byte[VaultConfiguration.BlockContentSize*2].Write(w =>
             {
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern1, 55, 55));
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern2, 55, 55));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern1, 55, 55));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern2, 55, 55));
             });
 
             var result3 = new byte[20].Write(w =>
             {
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern1, 5, 5));
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern2, 15, 15));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern1, 5, 5));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern2, 15, 15));
             });
 
             var result4 = new byte[40].Write(w =>
             {
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern2, 5, 5));
-                w.Write(VaultGenerator.GetByteBufferFromPattern(Pattern3, 20, 20));
-                w.Write(VaultGenerator.GetByteBufferFromPattern(new byte[] {0}, 15, 15));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern2, 5, 5));
+                w.Write(Gc.GetByteBufferFromPattern(Gc.Pattern3, 20, 20));
+                w.Write(Gc.GetByteBufferFromPattern(new byte[] {0}, 15, 15));
             });
 
             return new[]
             {
                 new TestCaseData(0, 5)
                     .SetName("1. Чтение первых пяти байт")
-                    .Returns(VaultGenerator.GetByteBufferFromPattern(Pattern1, 5, 5)),
+                    .Returns(Gc.GetByteBufferFromPattern(Gc.Pattern1, 5, 5)),
 
                 new TestCaseData(0, 110)
                     .SetName("2. Чтение первых двух блоков")
@@ -219,16 +219,16 @@ namespace Vault.Tests.VaultStream
         {
             // test 1
             var vaultStream1 = new Core.Data.VaultStream(GetVaultStream(), 0, VaultConfiguration);
-            var mask1 = GetVaultMask().SetValueOf(4, true).SetValueOf(5, true);
+            var mask1 = GetVaultMask().SetValueTo(4, true).SetValueTo(5, true);
             var vaultInfo1 = new VaultInfo(TestVaultName, TestVaultInfoFlags, mask1, 6);
             var blocks1 = new BlockListGenerator().Add(4, 0, 0, BlockFlags.None).Add(5, 0, 0, BlockFlags.None).ToArray();
             var expectedStreamContent1 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo1)
-                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isLastBlock: false, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isLastBlock: true, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 0, pattern: PatternEmpty, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 2, pattern: Gc.Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isLastBlock: true, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 0, pattern: Gc.PatternEmpty, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 0, pattern: Gc.PatternEmpty, isLastBlock: false, isFirstBlock: false)
                 .GetContentWithoutVaultInfo();              
 
 
@@ -282,8 +282,8 @@ namespace Vault.Tests.VaultStream
                 .InitializeVault(VaultConfiguration, vaultInfo1)
                 .WriteBlockWithPattern(continuation: 0, allocated: 0, pattern: new byte[] {0}, isFirstBlock: false,
                     isLastBlock: false)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isLastBlock: false, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isLastBlock: true, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isLastBlock: false, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isLastBlock: true, isFirstBlock: false)
                 .GetContentWithoutVaultInfo();
 
             // result 2
@@ -294,7 +294,7 @@ namespace Vault.Tests.VaultStream
                     isLastBlock: false)
                 .WriteBlockWithPattern(continuation: 0, allocated: 0, pattern: new byte[] { 0 }, isFirstBlock: false,
                     isLastBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false, isLastBlock: true)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false, isLastBlock: true)
                 .GetContentWithoutVaultInfo();
 
             return new[]
@@ -407,78 +407,78 @@ namespace Vault.Tests.VaultStream
             Func<VaultInfo> vaultInfo = () => new VaultInfo(TestVaultName, TestVaultInfoFlags, GetVaultMask(), 4);
 
             // result 1
-            var block1Content = VaultGenerator.GetByteBufferFromPattern(Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var block1Content = Gc.GetByteBufferFromPattern(Gc.Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
             var localPattern = new byte[] {101, 102, 103, 104, 105};
             Array.Copy(localPattern, 0, block1Content, 0, 5);
 
             var stream1 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo())
                 .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block1Content)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false)
                 .GetStream();
 
             // result 2
-            var block2Content = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var block2Content = Gc.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
             var stream2 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo())
                 .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block2Content)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false)
                 .GetStream();
 
             // result 3
-            var writeContent3 = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize * 2, VaultConfiguration.BlockContentSize * 2);
-            var singleBlock3 = VaultGenerator.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var writeContent3 = Gc.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize * 2, VaultConfiguration.BlockContentSize * 2);
+            var singleBlock3 = Gc.GetByteBufferFromPattern(localPattern, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
             var stream3 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo())
                 .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: singleBlock3)
                 .WriteBlockWithContent(continuation: 3, flags: BlockFlags.None, content: singleBlock3)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false)
                 .GetStream();
 
             // result 4                                                                     
-            var writeContent4 = VaultGenerator.GetByteBufferFromPattern(localPattern, 10, 10);
+            var writeContent4 = Gc.GetByteBufferFromPattern(localPattern, 10, 10);
 
-            var block1 = VaultGenerator.GetByteBufferFromPattern(Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var block1 = Gc.GetByteBufferFromPattern(Gc.Pattern1, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
             Array.Copy(localPattern, 0, block1, 50, 5);
 
-            var block2 = VaultGenerator.GetByteBufferFromPattern(Pattern2, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
+            var block2 = Gc.GetByteBufferFromPattern(Gc.Pattern2, VaultConfiguration.BlockContentSize, VaultConfiguration.BlockContentSize);
             Array.Copy(localPattern, 0, block2, 0, 5);
 
             var stream4 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo())
                 .WriteBlockWithContent(continuation: 2, flags: BlockFlags.IsFirstBlock, content: block1)
                 .WriteBlockWithContent(continuation: 3, flags: BlockFlags.None, content: block2)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false)
                 .GetStream();
 
             // result 5
-            var writeContent5 = VaultGenerator.GetByteBufferFromPattern(localPattern, 10, 10);
-            var block3Content5 = VaultGenerator.GetByteBufferFromPattern(Pattern3, 30, 30);
+            var writeContent5 = Gc.GetByteBufferFromPattern(localPattern, 10, 10);
+            var block3Content5 = Gc.GetByteBufferFromPattern(Gc.Pattern3, 30, 30);
             Array.Copy(localPattern, 0, block3Content5, 20, 5);
             Array.Copy(localPattern, 0, block3Content5, 25, 5);
 
             var stream5 = new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo())
-                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 2, pattern: Gc.Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isFirstBlock: false)
                 .WriteBlockWithContent(0, 30, BlockFlags.IsLastBlock, block3Content5)
                 .GetStream();
 
             // result 6
-            var writeContent6 = VaultGenerator.GetByteBufferFromPattern(localPattern, 55, 55);
-            var block3Content6 = VaultGenerator.GetByteBufferFromPattern(Pattern3, 55, 55);
+            var writeContent6 = Gc.GetByteBufferFromPattern(localPattern, 55, 55);
+            var block3Content6 = Gc.GetByteBufferFromPattern(Gc.Pattern3, 55, 55);
 
             Array.Copy(writeContent6, 0, block3Content6, 20, 35);
-            var block4Content6 = VaultGenerator.GetByteBufferFromPattern(new byte[] {0}, 55, 55);
+            var block4Content6 = Gc.GetByteBufferFromPattern(new byte[] {0}, 55, 55);
             Array.Copy(writeContent6, 0, block4Content6, 0, 20);
             
 
             var stream6 = new VaultGenerator()
-                .InitializeVault(VaultConfiguration, new VaultInfo(TestVaultName, TestVaultInfoFlags, GetVaultMask().SetValueOf(4, true), 5))
-                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
+                .InitializeVault(VaultConfiguration, new VaultInfo(TestVaultName, TestVaultInfoFlags, GetVaultMask().SetValueTo(4, true), 5))
+                .WriteBlockWithPattern(continuation: 2, pattern: Gc.Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isFirstBlock: false)
                 .WriteBlockWithContent(4, 55, BlockFlags.None, block3Content6)
                 .WriteBlockWithContent(0, 20, BlockFlags.IsLastBlock, block4Content6)
                 .GetStream();
@@ -532,9 +532,9 @@ namespace Vault.Tests.VaultStream
 
             return new VaultGenerator()
                 .InitializeVault(VaultConfiguration, vaultInfo)
-                .WriteBlockWithPattern(continuation: 2, pattern: Pattern1)
-                .WriteBlockWithPattern(continuation: 3, pattern: Pattern2, isFirstBlock: false)
-                .WriteBlockWithPattern(allocated: 20, pattern: Pattern3, isFirstBlock: false)
+                .WriteBlockWithPattern(continuation: 2, pattern: Gc.Pattern1)
+                .WriteBlockWithPattern(continuation: 3, pattern: Gc.Pattern2, isFirstBlock: false)
+                .WriteBlockWithPattern(allocated: 20, pattern: Gc.Pattern3, isFirstBlock: false)
                 .GetStream();
         }
 
@@ -564,11 +564,6 @@ namespace Vault.Tests.VaultStream
         #endregion
 
         // constatns
-
-        private static readonly byte[] Pattern1 = {21, 22, 23, 24, 25};
-        private static readonly byte[] Pattern2 = {31, 32, 33, 34, 35};
-        private static readonly byte[] Pattern3 = {41, 42, 43, 44, 45};
-        private static readonly byte[] PatternEmpty = {0};
 
         private const VaultInfoFlags TestVaultInfoFlags = VaultInfoFlags.Encryptable | VaultInfoFlags.Versionable;
         private const string TestVaultName = "test vault name";

@@ -7,7 +7,7 @@ namespace Vault.Core.Data
 
         public BitMask(byte[] byteArray, int maskLength = 0)
         {
-            if (maskLength == 0 || byteArray.Length * NumberOfBitsInByte > maskLength)
+            if (maskLength == 0 || byteArray.Length*NumberOfBitsInByte > maskLength)
                 maskLength = byteArray.Length*NumberOfBitsInByte;
             _byteArray = byteArray;
             _maskLength = maskLength;
@@ -17,16 +17,16 @@ namespace Vault.Core.Data
 
         public bool GetValueOf(int indexOfBit)
         {
-            if (indexOfBit> _maskLength - 1)
+            if (indexOfBit > _maskLength - 1)
                 throw new ArgumentException(nameof(indexOfBit));
 
             var indexOfByte = GetNumberOfByteWithBitIndex(indexOfBit);
 
-            var mask = (byte)(1 << indexOfBit % NumberOfBitsInByte);
+            var mask = (byte) (1 << indexOfBit%NumberOfBitsInByte);
             return (_byteArray[indexOfByte] & mask) == mask;
         }
 
-        public BitMask SetValueOf(int indexOfBit, bool value)
+        public BitMask SetValueTo(int indexOfBit, bool value)
         {
             if (indexOfBit > _maskLength - 1)
                 throw new ArgumentException(nameof(indexOfBit));
@@ -43,10 +43,18 @@ namespace Vault.Core.Data
             return this;
         }
 
+        public BitMask SetValuesTo(bool value, params int[] indexes)
+        {
+            foreach (var index in indexes)
+                SetValueTo(index, value);
+
+            return this;
+        }
+
         public bool this[int index]
         {
             get { return GetValueOf(index); }
-            set { SetValueOf(index, value); }
+            set { SetValueTo(index, value); }
         }
 
         public int GetFirstIndexOf(bool value)

@@ -10,6 +10,7 @@ namespace Vault.Tests.VaultStream
     public class BitMask
     {
         // test initialize
+
         [SetUp]
         public void TestSetup()
         {
@@ -73,7 +74,7 @@ namespace Vault.Tests.VaultStream
         [Test, TestCaseSource(typeof(BitMask), nameof(SetValueOf_TestData))]
         public byte[] SetValueOf(int index, bool value)
         {
-            _bitMask.SetValueOf(index, value);
+            _bitMask.SetValueTo(index, value);
             return _maskAsBytes;
         }
 

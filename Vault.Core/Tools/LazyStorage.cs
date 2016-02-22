@@ -20,18 +20,11 @@ namespace Vault.Core.Tools
         {
             if (!_storage.ContainsKey(key))
             {
-                try
-                {
                     var result = _getter(key);
                     if (result == null)
                         return default(TResult);
 
                     _storage.Add(key, result);
-                }
-                catch (Exception)
-                {
-                    return default(TResult);
-                }
             }
 
             return _storage[key];

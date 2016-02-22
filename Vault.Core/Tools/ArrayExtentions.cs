@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Vault.Core.Tools
@@ -51,7 +52,8 @@ namespace Vault.Core.Tools
 
         public static byte[][] Split(this byte[] self, int chunkLength, bool collapseLastChunkToContent = false)
         {
-            Contract.Requires(self != null);
+            if (self.Length < chunkLength)
+                chunkLength = self.Length;
 
             int numberOfChunks = 0;
             if (self.Length <= chunkLength)
@@ -69,14 +71,22 @@ namespace Vault.Core.Tools
             for (int i = 0; i < numberOfChunks; i++)
             {
                 var from = i*chunkLength;
-                var to = from + chunkLength;
+                var to = chunkLength;
                 if (i == numberOfChunks - 1)
                 {
-                    to = from + self.Length%chunkLength;
-                    if (collapseLastChunkToContent)
+                    var size = collapseLastChunkToContent 
+                        ? self.Length%chunkLength 
+                        : chunkLength;
+
+                    to = self.Length%chunkLength;
+                    if (to == 0)
                     {
-                        result[i] = new byte[to];
+                        to = self.Length < chunkLength
+                            ? self.Length
+                            : chunkLength;
                     }
+
+                    result[i] = new byte[size];
                 }
                 else
                 {
@@ -86,6 +96,21 @@ namespace Vault.Core.Tools
             }
 
             return result;
+        }
+
+        public static byte[] Join(params byte[][] contentArray)
+        {
+            var length = contentArray.Sum(p => p.Length);
+            var buffer = new byte[length];
+
+            int offset = 0;
+            foreach (var content in contentArray)
+            {
+                Array.Copy(content, 0, buffer, offset, content.Length);
+                offset += content.Length;
+            }
+
+            return buffer;
         }
     }
 }

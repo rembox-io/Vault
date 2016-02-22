@@ -32,12 +32,13 @@ namespace Vault.Core.Data
             foreach (var chunk in chunks)
                 WriteChunk(chunk);
 
+            record.Id = chunks[0].Id;
             return chunks[0].Id;
         }
 
-        private Chunk[] CreateChunkSequenceForRecordBinary(byte[] binary)
+        internal Chunk[] CreateChunkSequenceForRecordBinary(byte[] binary)
         {
-            var chunkContentArray = binary.Split(Chunk.ContentSize);
+            var chunkContentArray = binary.Split(Chunk.MaxContentSize);
             var chunkArray = new Chunk[chunkContentArray.Length];
             for (int index = 0; index < chunkContentArray.Length; index++)
             {
@@ -47,25 +48,27 @@ namespace Vault.Core.Data
                 if (index == chunkContentArray.Length - 1)
                 {
                     chunk.Continuation = 0;
-                    chunk.Flags = ChunkFlags.IsLastRecord;
+                    chunk.Flags |= ChunkFlags.IsLastRecord;
                 }
                 else
                 {
-                    chunkArray[index - 1].Id = chunk.Continuation;
-                    chunk.Flags &= ~ChunkFlags.IsLastRecord;
+                    if(index > 0)
+                        chunkArray[index - 1].Id = chunk.Continuation;
+
+                    chunk.Flags |= ~ChunkFlags.IsLastRecord;
                 }
 
                 if (index == 0)
-                    chunk.Flags &= ChunkFlags.IsFirstRecord;
+                    chunk.Flags |= ChunkFlags.IsFirstRecord;
                 else
-                    chunk.Flags &= ~ChunkFlags.IsFirstRecord;
+                    chunk.Flags |= ~ChunkFlags.IsFirstRecord;
 
                 chunkArray[index] = chunk;
             }
             return chunkArray;
         }
 
-        private Chunk ReadChunk(ushort recordId)
+        internal Chunk ReadChunk(ushort recordId)
         {
             var recordAllocated = _blockMaskStorage[recordId/_numberOfRecordsInRecordBlock][LocalizeChunkId(recordId)];
             if (!recordAllocated)
@@ -79,8 +82,14 @@ namespace Vault.Core.Data
             return new Chunk(buffer);
         }
 
-        private void WriteChunk(Chunk chunk)
+        internal void WriteChunk(Chunk chunk)
         {
+            var blockIndex = chunk.Id/_numberOfRecordsInRecordBlock;
+            var block = GetOrCreateRecrodsBlockMask(blockIndex);
+
+            if (block == null)
+                throw new VaultException();
+
             var offset = GetChunkOffset(chunk.Id);
             _stream.Seek(offset, SeekOrigin.Begin);
             var binary = chunk.ToBinary();
@@ -88,7 +97,7 @@ namespace Vault.Core.Data
             SetChunkOccupatedValue(chunk.Id, true);
         }
 
-        private Record GetRecordFromChunkSequence(Chunk[] chunkSequence)
+        internal Record GetRecordFromChunkSequence(Chunk[] chunkSequence)
         {
             var recordRawLength = chunkSequence.Sum(p => p.Content.Length);
 
@@ -105,13 +114,15 @@ namespace Vault.Core.Data
             return record;
         }
 
-        private Chunk[] ReadChunkSequence(ushort headChunkId)
+        internal Chunk[] ReadChunkSequence(ushort headChunkId)
         {
-            Chunk currentChunk = null;
             var result = new List<Chunk>();
 
-            currentChunk = ReadChunk(headChunkId);
+            var currentChunk = ReadChunk(headChunkId);
             result.Add(currentChunk);
+
+            if (!currentChunk.Flags.HasFlag(ChunkFlags.IsFirstRecord))
+                throw new VaultException("Chunk sequence cant start from chunk without IsFirstRecord flag.");
 
             while (!currentChunk.Flags.HasFlag(ChunkFlags.IsLastRecord) && currentChunk.Continuation > 0)
             {
@@ -119,17 +130,20 @@ namespace Vault.Core.Data
                 result.Add(currentChunk);
             }
 
+            if (!result.Last().Flags.HasFlag(ChunkFlags.IsLastRecord))
+                throw new VaultException("Chunk sequence cant start with chunk without IsLastRecord flag.");
+
             return result.ToArray();
         }
 
         private int GetChunkOffset(ushort recordId)
         {
             var part = recordId/_numberOfRecordsInRecordBlock;
-            var offset = part*_fullRecordBlockSzie + _recordMaskSize;
+            var offset = part*_recordsBlockSize + _recordMaskSize;
 
             var recordIndexInRecordBlock = LocalizeChunkId(recordId);
 
-            offset *= recordIndexInRecordBlock * _recordSize;
+            offset += recordIndexInRecordBlock * _recordSize;
 
             return offset;
         }
@@ -139,21 +153,7 @@ namespace Vault.Core.Data
             var recordIndexInRecordBlock = recordId%_numberOfRecordsInRecordBlock;
             recordIndexInRecordBlock = recordIndexInRecordBlock == 0 ? recordId : recordIndexInRecordBlock;
             return recordIndexInRecordBlock;
-        }
-
-        private BitMask GetRecordBlockMask(int blockIndex)
-        {
-            var offset = _fullRecordBlockSzie*blockIndex;
-            if (offset > _stream.Length)
-                return null;
-
-            _stream.Seek(offset, SeekOrigin.Begin);
-
-            var buffer = new byte[_recordMaskSize];
-            _stream.Read(buffer, 0, _recordMaskSize);
-
-            return new BitMask(buffer);
-        }
+        }        
 
         private ushort GetNextAvialableRecordIndex()
         {
@@ -168,7 +168,7 @@ namespace Vault.Core.Data
                 }
             }
 
-            var mask = GetOrCreateBlockMask(_blockMaskStorage.Count);
+            var mask = GetOrCreateRecrodsBlockMask(_blockMaskStorage.Count);
 
 
             return (ushort)mask.GetFirstIndexOf(false);
@@ -179,20 +179,42 @@ namespace Vault.Core.Data
             var localChunkId = LocalizeChunkId(chunkId);
             var blockIndex = chunkId/_numberOfRecordsInRecordBlock;
 
-            var offset = _fullRecordBlockSzie * blockIndex;
-            _blockMaskStorage[blockIndex].SetValueOf(localChunkId, value);
+            var offset = _fullRecordSzie * blockIndex;
+            _blockMaskStorage[blockIndex].SetValueTo(localChunkId, value);
             _stream.Seek(offset, SeekOrigin.Begin);
             _stream.Write(_blockMaskStorage[blockIndex].Bytes, 0 ,_blockMaskStorage[blockIndex].Bytes.Length);
         }
 
-        private BitMask GetOrCreateBlockMask(int blockMaskId)
+        internal bool GetChunkOccupatedValue(ushort chunkId)
         {
-            var blockMask = _blockMaskStorage[blockMaskId];
+            var localChunkId = LocalizeChunkId(chunkId);
+            var blockIndex = chunkId / _numberOfRecordsInRecordBlock;
+
+            return _blockMaskStorage[blockIndex][localChunkId];
+        }
+
+        private BitMask GetRecordBlockMask(int blockIndex)
+        {
+            var offset = _recordsBlockSize * blockIndex;
+            if (offset > _stream.Length)
+                throw new VaultException();
+
+            _stream.Seek(offset, SeekOrigin.Begin);
+
+            var buffer = new byte[_recordMaskSize];
+            _stream.Read(buffer, 0, _recordMaskSize);
+
+            return new BitMask(buffer);
+        }
+
+        private BitMask GetOrCreateRecrodsBlockMask(int blockIndex)
+        {
+            var blockMask = _blockMaskStorage[blockIndex];
             if (blockMask != null)
                 return blockMask;
 
             var newBitMask = new byte[_recordMaskSize];
-            _stream.Seek(0, SeekOrigin.End);
+            _stream.Seek(_recordsBlockSize * blockIndex, SeekOrigin.Begin);
             _stream.Write(newBitMask, 0, newBitMask.Length);
 
             return new BitMask(newBitMask);
@@ -201,13 +223,17 @@ namespace Vault.Core.Data
 
         // fields
 
-        private readonly LazyStorage<int, BitMask> _blockMaskStorage = null;
+        private readonly LazyStorage<int, BitMask> _blockMaskStorage;
 
-        private readonly int _recordSize = 1024;
-        private readonly int _recordMaskSize = 127;
-        private readonly int _fullRecordBlockSzie = 1143;
-        private readonly int _numberOfRecordsInRecordBlock = 1016;
-        
+        private static readonly int _recordSize = 1024;
+        private static readonly int _fullRecordSzie = 1143;
+        private static readonly int _numberOfRecordsInRecordBlock = 1016;
+
+        // Full size of block, wich contains 1016 records by 1024 byte,  and avialability metadata for them by 127 byte;
+        internal static readonly int _recordsBlockSize = 1040511;
+        internal static readonly int _recordMaskSize = 127;
+
+
         private readonly Stream _stream;
     }
 }
