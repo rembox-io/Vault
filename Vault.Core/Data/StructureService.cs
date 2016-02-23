@@ -48,20 +48,20 @@ namespace Vault.Core.Data
                 if (index == chunkContentArray.Length - 1)
                 {
                     chunk.Continuation = 0;
-                    chunk.Flags |= ChunkFlags.IsLastRecord;
+                    chunk.Flags |= ChunkFlags.IsLastChunk;
                 }
                 else
                 {
                     if(index > 0)
                         chunkArray[index - 1].Id = chunk.Continuation;
 
-                    chunk.Flags |= ~ChunkFlags.IsLastRecord;
+                    chunk.Flags |= ~ChunkFlags.IsLastChunk;
                 }
 
                 if (index == 0)
-                    chunk.Flags |= ChunkFlags.IsFirstRecord;
+                    chunk.Flags |= ChunkFlags.IsFirstChunk;
                 else
-                    chunk.Flags |= ~ChunkFlags.IsFirstRecord;
+                    chunk.Flags |= ~ChunkFlags.IsFirstChunk;
 
                 chunkArray[index] = chunk;
             }
@@ -121,17 +121,17 @@ namespace Vault.Core.Data
             var currentChunk = ReadChunk(headChunkId);
             result.Add(currentChunk);
 
-            if (!currentChunk.Flags.HasFlag(ChunkFlags.IsFirstRecord))
-                throw new VaultException("Chunk sequence cant start from chunk without IsFirstRecord flag.");
+            if (!currentChunk.Flags.HasFlag(ChunkFlags.IsFirstChunk))
+                throw new VaultException("Chunk sequence cant start from chunk without IsFirstChunk flag.");
 
-            while (!currentChunk.Flags.HasFlag(ChunkFlags.IsLastRecord) && currentChunk.Continuation > 0)
+            while (!currentChunk.Flags.HasFlag(ChunkFlags.IsLastChunk) && currentChunk.Continuation > 0)
             {
                 currentChunk = ReadChunk(currentChunk.Continuation);
                 result.Add(currentChunk);
             }
 
-            if (!result.Last().Flags.HasFlag(ChunkFlags.IsLastRecord))
-                throw new VaultException("Chunk sequence cant start with chunk without IsLastRecord flag.");
+            if (!result.Last().Flags.HasFlag(ChunkFlags.IsLastChunk))
+                throw new VaultException("Chunk sequence cant start with chunk without IsLastChunk flag.");
 
             return result.ToArray();
         }

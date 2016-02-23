@@ -105,7 +105,7 @@ namespace Vault.Core.Data
     public enum ChunkFlags : byte
     {
         None = 0,
-        IsFirstRecord = 1,
-        IsLastRecord = 2,
+        IsFirstChunk = 1,
+        IsLastChunk = 2,
     }
 }

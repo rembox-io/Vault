@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Text;
 using Vault.Core.Tools;
 
@@ -59,7 +60,37 @@ namespace Vault.Core.Data
             return buffer;
         }
 
-        private const int MetadataSize = 3;
+
+        public override bool Equals(object obj)
+        {
+            var record = obj as Record;
+            if (obj == null)
+                return false;
+            return Equals(record);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Id.GetHashCode();
+                hashCode = (hashCode*397) ^ (int) Flags;
+                hashCode = (hashCode*397) ^ (Name?.GetHashCode() ?? 0);
+                hashCode = (hashCode*397) ^ (Content?.GetHashCode() ?? 0);
+                return hashCode;
+            }
+        }
+
+        public bool Equals(Record record)
+        {
+            return Id == record.Id
+                   && Flags == record.Flags
+                   && Name == record.Name
+                   && Content.SequenceEqual(record.Content);
+        }
+
+
+        private const int MetadataSize = 5;
         private const int MinimumRecordRawContentSize = 6;
     }
 

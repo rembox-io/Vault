@@ -74,9 +74,17 @@ namespace Vault.Core.Tools
                 var to = chunkLength;
                 if (i == numberOfChunks - 1)
                 {
-                    var size = collapseLastChunkToContent 
-                        ? self.Length%chunkLength 
-                        : chunkLength;
+                    int size;
+                    if (collapseLastChunkToContent)
+                    {
+                        size = self.Length%chunkLength;
+                        if (size == 0)
+                            size = self.Length;
+                    }
+                    else
+                    {
+                        size = chunkLength;
+                    }
 
                     to = self.Length%chunkLength;
                     if (to == 0)
