@@ -242,7 +242,6 @@ namespace Vault.Tests.StructureService
 
         #endregion
 
-
         #region GetRecordFromChunkSequence
 
         public static IEnumerable GetRecordFromChunkSequence_TestCaseSource()
@@ -267,6 +266,51 @@ namespace Vault.Tests.StructureService
         {
             var result = _service.GetRecordFromChunkSequence(chunks);
             return result;
+        }
+
+        #endregion
+
+        #region GetChunkOffset
+
+        public static IEnumerable GetChunkOffset_TestCaseSource()
+        {
+            return new[]
+            {
+                new TestCaseData(0)
+                .SetName("First chunk of first RecordBlock.")
+                .Returns(127),
+                
+                new TestCaseData(1)
+                .SetName("Second chunk of first RecordBlock.")
+                .Returns(1151),
+
+                new TestCaseData(2)
+                .SetName("Third chunk of first RecordBlock.")
+                .Returns(2175),
+
+                new TestCaseData(1015)
+                .SetName("Last chunk of first RecordBlock.")
+                .Returns(1039487),
+
+                new TestCaseData(1016)
+                .SetName("First chunk of second RecordBlock.")
+                .Returns(1040638),
+
+                new TestCaseData(2031)
+                .SetName("Last chunk of second RecordBlock.")
+                .Returns(2079998),
+
+                new TestCaseData(2032)
+                .SetName("First chunk of third RecordBlock.")
+                .Returns(2081149),
+                
+            };
+        }
+
+        [Test, TestCaseSource(typeof(StructureServiceTests), nameof(GetChunkOffset_TestCaseSource))]
+        public int GetChunkOffset(int recordId)
+        {
+            return _service.GetChunkOffset((ushort)recordId);
         }
 
         #endregion

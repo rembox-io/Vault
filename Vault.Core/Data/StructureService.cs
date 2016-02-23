@@ -133,7 +133,7 @@ namespace Vault.Core.Data
             return result.ToArray();
         }
 
-        private int GetChunkOffset(ushort recordId)
+        internal int GetChunkOffset(ushort recordId)
         {
             var part = recordId/_numberOfRecordsInRecordBlock;
             var offset = part*_recordsBlockSize + _recordMaskSize;
@@ -148,7 +148,7 @@ namespace Vault.Core.Data
         private int LocalizeChunkId(ushort recordId)
         {
             var recordIndexInRecordBlock = recordId%_numberOfRecordsInRecordBlock;
-            recordIndexInRecordBlock = recordIndexInRecordBlock == 0 ? recordId : recordIndexInRecordBlock;
+            recordIndexInRecordBlock = recordId < _numberOfRecordsInRecordBlock ? recordId : recordIndexInRecordBlock;
             return recordIndexInRecordBlock;
         }        
 
