@@ -8,6 +8,14 @@ namespace Vault.Core.Tools
 {
     public static class ArrayExtentions
     {
+        public static byte[] AsBinaryWithPrefix(this string self)
+        {
+            var bytesCount = Encoding.UTF8.GetByteCount(self);
+            var buffer = new byte[bytesCount + 2];
+            buffer.Write(w=> w.WriteString2(self));
+            return buffer;
+        }
+
         public static byte[] Write(this byte[] self, Action<BinaryWriter> action)
         {
             using (var stream = new MemoryStream(self))

@@ -28,25 +28,25 @@ namespace Vault.Tests.StructureService
             _memoryStream.Seek(0, SeekOrigin.Begin);
             _memoryStream.Write(blockMask.Bytes, 0, blockMask.Bytes.Length);
 
-            InternalWriteChunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize));
+            InternalWriteChunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(0,RecordFlags.IsDirectory, "first record")));
             InternalWriteChunk(1, 2, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize));
             InternalWriteChunk(2, 3, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize));
             InternalWriteChunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize));
 
             InternalWriteChunk();
 
-            InternalWriteChunk(5, 6, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize));
+            InternalWriteChunk(5, 6, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(5, RecordFlags.IsDirectory, "second record")));
             InternalWriteChunk(6, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize));
 
             InternalWriteChunk();
 
-            InternalWriteChunk(8, 0, ChunkFlags.IsLastChunk | ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize));
+            InternalWriteChunk(8, 0, ChunkFlags.IsLastChunk | ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize, GetRecordPrefix(8, RecordFlags.IsDirectory, "third record")));
 
             InternalWriteChunk();
             InternalWriteChunk();
 
-            InternalWriteChunk(11, 0, ChunkFlags.IsLastChunk | ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize));
-            InternalWriteChunk(12, 0, ChunkFlags.IsLastChunk | ChunkFlags.None, Gc.P2(Chunk.MaxContentSize));
+            InternalWriteChunk(11, 12, ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize, GetRecordPrefix(11, RecordFlags.IsDirectory, "fourth record")));
+            InternalWriteChunk(12, 0, ChunkFlags.IsLastChunk, Gc.P2(Chunk.MaxContentSize));
 
 
             _service = new Core.Data.StructureService(_memoryStream);
@@ -118,7 +118,7 @@ namespace Vault.Tests.StructureService
             {
                 new TestCaseData((ushort) 0)
                     .SetName("1. Чтение самого первого чанка.")
-                    .Returns(new Chunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize))),
+                    .Returns(new Chunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(0,RecordFlags.IsDirectory, "first record")))),
 
                 new TestCaseData((ushort) 1)
                     .SetName("2. Чтение второго чанка из записи.")
@@ -135,7 +135,7 @@ namespace Vault.Tests.StructureService
                 new TestCaseData((ushort) 8)
                     .SetName("5. Чтение одиночного чатнка.")
                     .Returns(new Chunk(8, 0, ChunkFlags.IsFirstChunk | ChunkFlags.IsLastChunk,
-                        Gc.P2(Chunk.MaxContentSize))),
+                        Gc.P2(Chunk.MaxContentSize, GetRecordPrefix(8,RecordFlags.IsDirectory, "third record")))),
 
                 new TestCaseData((ushort) 10)
                     .SetName("6. Чтение ни разу не аллоцированного чатнка.")
@@ -198,7 +198,7 @@ namespace Vault.Tests.StructureService
                 .SetName("1. Собираем запись из 4 чанков.")
                 .Returns(new[]
                 {
-                    new Chunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize)),
+                    new Chunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(0,RecordFlags.IsDirectory, "first record"))),
                     new Chunk(1, 2, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize)),
                     new Chunk(2, 3, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize)),
                     new Chunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize))
@@ -208,7 +208,7 @@ namespace Vault.Tests.StructureService
                 .SetName("2. Собираем запись из 2 чанков.")
                 .Returns(new[]
                 {
-                    new Chunk(5, 6, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize)),
+                    new Chunk(5, 6, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(5,RecordFlags.IsDirectory, "second record"))),
                     new Chunk(6, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize))
                 }), 
 
@@ -216,7 +216,7 @@ namespace Vault.Tests.StructureService
                 .SetName("3. Собираем запись из одного чанка.")
                 .Returns(new[]
                 {
-                    new Chunk(8, 0, ChunkFlags.IsLastChunk | ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize))
+                    new Chunk(8, 0, ChunkFlags.IsLastChunk | ChunkFlags.IsFirstChunk, Gc.P2(Chunk.MaxContentSize, GetRecordPrefix(8,RecordFlags.IsDirectory, "third record")))
                 }), 
 
                 new TestCaseData((ushort)4)
@@ -315,6 +315,22 @@ namespace Vault.Tests.StructureService
 
         #endregion
 
+        #region ReadRecord
+
+        public static IEnumerable ReadRecord_TestCaseSource()
+        {
+            var case1 = new TestCaseData();
+            return new[] {case1};
+        }
+
+        [Test, TestCaseSource(typeof(StructureServiceTests), nameof(ReadRecord_TestCaseSource))]
+        public Record ReadRecord(int startRecordChunkId)
+        {
+            return _service.ReadRecord((ushort)startRecordChunkId);
+        }
+
+        #endregion
+
         // stuff
 
         private static TestCaseData GetTestCaseDataForGetREcordFromChunkSequence(string recordName, byte[] recordContent, string testName)
@@ -386,9 +402,25 @@ namespace Vault.Tests.StructureService
             _memoryStream.Write(chunkBinary, 0, chunkBinary.Length);
         }
 
+        private static byte[] GetRecordPrefix(ushort recordId, RecordFlags flags, string recordName)
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(stream))
+                {
+                    writer.Write(recordId);
+                    writer.Write((byte)flags);
+                    writer.WriteString2(recordName);
+
+                    return stream.ToArray();
+                }
+            }
+        }
+
         // fields
 
         private MemoryStream _memoryStream;
         private Core.Data.StructureService _service;
+        private readonly byte[] _recordNameAsBinary = "record name".AsBinaryWithPrefix();
     }
 }

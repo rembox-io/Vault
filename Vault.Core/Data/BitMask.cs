@@ -41,6 +41,9 @@ namespace Vault.Core.Data
             if (indexOfBit > _maskLength - 1)
                 throw new ArgumentException(nameof(indexOfBit));
 
+            if (_cache.ContainsKey(indexOfBit))
+                return _cache[indexOfBit];
+
             var indexOfByte = GetNumberOfByteWithBitIndex(indexOfBit);
 
             var mask = (byte) (1 << indexOfBit%NumberOfBitsInByte);
