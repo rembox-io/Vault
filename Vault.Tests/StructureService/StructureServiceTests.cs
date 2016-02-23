@@ -72,8 +72,8 @@ namespace Vault.Tests.StructureService
                 .SetName("3. Запись ровно двух чанков.")
                 .Returns(new[]
                 {
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content3.Split(Chunk.MaxContentSize)[0]),
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content3.Split(Chunk.MaxContentSize)[1])
+                    new Chunk(4, 7, ChunkFlags.IsFirstChunk, content3.Split(Chunk.MaxContentSize)[0]),
+                    new Chunk(7, 0, ChunkFlags.IsLastChunk, content3.Split(Chunk.MaxContentSize)[1])
                 });
 
             var content4 = Gc.GetByteBufferFromPattern(Gc.Pattern1, Chunk.MaxContentSize*3, Chunk.MaxContentSize*3);
@@ -81,9 +81,9 @@ namespace Vault.Tests.StructureService
                 .SetName("4. Запись ровно трех чанков.")
                 .Returns(new[]
                 {
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content4.Split(Chunk.MaxContentSize)[0]),
-                    new Chunk(4, 0, ChunkFlags.None, content4.Split(Chunk.MaxContentSize)[1]),
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content4.Split(Chunk.MaxContentSize)[2])
+                    new Chunk(4, 7, ChunkFlags.IsFirstChunk, content4.Split(Chunk.MaxContentSize)[0]),
+                    new Chunk(7, 9, ChunkFlags.None, content4.Split(Chunk.MaxContentSize)[1]),
+                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content4.Split(Chunk.MaxContentSize)[2])
                 });
 
             var content5 = Gc.GetByteBufferFromPattern(Gc.Pattern1, Chunk.MaxContentSize*3 - 10,
@@ -92,9 +92,9 @@ namespace Vault.Tests.StructureService
                 .SetName("5. Запись чуть меньше трех чанков.")
                 .Returns(new[]
                 {
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content5.Split(Chunk.MaxContentSize)[0]),
-                    new Chunk(4, 0, ChunkFlags.None, content5.Split(Chunk.MaxContentSize)[1]),
-                    new Chunk(4, 0, ChunkFlags.IsFirstChunk, content5.Split(Chunk.MaxContentSize)[2])
+                    new Chunk(4, 7, ChunkFlags.IsFirstChunk, content5.Split(Chunk.MaxContentSize)[0]),
+                    new Chunk(7, 9, ChunkFlags.None, content5.Split(Chunk.MaxContentSize)[1]),
+                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content5.Split(Chunk.MaxContentSize)[2])
                 });
 
 

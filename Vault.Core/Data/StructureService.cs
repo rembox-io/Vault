@@ -43,25 +43,22 @@ namespace Vault.Core.Data
             for (int index = 0; index < chunkContentArray.Length; index++)
             {
                 var chunk = new Chunk();
-                chunk.Id = GetNextAvialableRecordIndex();
+                chunk.Id = GetAndReserveNextAvialableRecordIndex();
                 chunk.Content = chunkContentArray[index];
-                if (index == chunkContentArray.Length - 1)
-                {
-                    chunk.Continuation = 0;
-                    chunk.Flags |= ChunkFlags.IsLastChunk;
-                }
-                else
-                {
-                    if(index > 0)
-                        chunkArray[index - 1].Id = chunk.Continuation;
-
-                    chunk.Flags |= ~ChunkFlags.IsLastChunk;
-                }
 
                 if (index == 0)
-                    chunk.Flags |= ChunkFlags.IsFirstChunk;
+                {
+                    chunk.Flags = ChunkFlags.IsFirstChunk;
+                    if(chunkContentArray.Length == 1)
+                        chunk.Flags |= ChunkFlags.IsLastChunk;
+                }
                 else
-                    chunk.Flags |= ~ChunkFlags.IsFirstChunk;
+                {
+                    if (index > 0)
+                        chunkArray[index - 1].Continuation = chunk.Id;
+                    if (chunkContentArray.Length - 1 == index)
+                        chunk.Flags = ChunkFlags.IsLastChunk;
+                }
 
                 chunkArray[index] = chunk;
             }
@@ -155,11 +152,12 @@ namespace Vault.Core.Data
             return recordIndexInRecordBlock;
         }        
 
-        private ushort GetNextAvialableRecordIndex()
+        private ushort GetAndReserveNextAvialableRecordIndex()
         {
             for (int blockIndex = 0; blockIndex < _blockMaskStorage.Count; blockIndex++)
             {
                 var result = _blockMaskStorage[blockIndex].GetFirstIndexOf(false);
+                _blockMaskStorage[blockIndex].SetReserveValueTo(result, true);
                 if (result > -1)
                 {
                     if(result > ushort.MaxValue)
@@ -169,9 +167,9 @@ namespace Vault.Core.Data
             }
 
             var mask = GetOrCreateRecrodsBlockMask(_blockMaskStorage.Count);
-
-
-            return (ushort)mask.GetFirstIndexOf(false);
+            var value = mask.GetFirstIndexOf(false);
+            mask.SetReserveValueTo(value, true);
+            return (ushort)value;
         }
 
         private void SetChunkOccupatedValue(ushort chunkId, bool value)

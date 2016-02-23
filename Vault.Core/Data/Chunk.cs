@@ -85,7 +85,7 @@ namespace Vault.Core.Data
                 return false;
 
             var result = obj.Id == Id && obj.Continuation == Continuation && obj.Flags == Flags;
-            result = (obj.Content ==null && Content == null) 
+            result &= (obj.Content ==null && Content == null) 
                 || (obj.Content != null && Content != null && Content.SequenceEqual(obj.Content));
 
             return result;

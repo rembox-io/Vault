@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using Vault.Core.Exceptions;
 
 namespace Vault.Core.Data
 {
@@ -15,6 +17,25 @@ namespace Vault.Core.Data
 
         public byte[] Bytes => _byteArray;
 
+        public void SetReserveValueTo(int index, bool value)
+        {
+            if (_cache.ContainsKey(index))
+                _cache[index] = value;
+            _cache.Add(index, value);
+        }
+
+        public void ApplayReserve()
+        {
+            foreach (var key in _cache.Keys)
+                SetValueTo(key, _cache[key]);
+            _cache.Clear();
+        }
+
+        public void ResetReserve()
+        {
+            _cache.Clear();
+        }
+
         public bool GetValueOf(int indexOfBit)
         {
             if (indexOfBit > _maskLength - 1)
@@ -30,6 +51,13 @@ namespace Vault.Core.Data
         {
             if (indexOfBit > _maskLength - 1)
                 throw new ArgumentException(nameof(indexOfBit));
+
+            if (_cache.ContainsKey((ushort) indexOfBit))
+            {
+                if (_cache.ContainsKey((ushort)indexOfBit) != value)
+                    throw new VaultException();
+                _cache.Remove((ushort)indexOfBit);
+            }
 
             var indexOfByte = GetNumberOfByteWithBitIndex(indexOfBit);
 
@@ -62,7 +90,9 @@ namespace Vault.Core.Data
             int index = 0;
             while (index < _maskLength)
             {
-                if (this[index] == value)
+                var isValueNotInCache = (!_cache.ContainsKey((ushort)index)  || _cache[(ushort)index] == value);
+
+                if (this[index] == value && isValueNotInCache)
                     return index;
                 index ++;
             }
@@ -78,6 +108,7 @@ namespace Vault.Core.Data
 
         // fields
 
+        private readonly Dictionary<int, bool> _cache = new Dictionary<int, bool>(); 
         private readonly byte[] _byteArray;
         private readonly int _maskLength;
 
