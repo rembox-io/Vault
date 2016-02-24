@@ -42,7 +42,7 @@ namespace Vault.Core.Data
 
         internal Chunk[] CreateChunkSequenceForRecordBinary(byte[] binary)
         {
-            var chunkContentArray = binary.Split(Chunk.MaxContentSize);
+            var chunkContentArray = binary.Split(Chunk.MaxContentSize, true);
             var chunkArray = new Chunk[chunkContentArray.Length];
             for (int index = 0; index < chunkContentArray.Length; index++)
             {

@@ -71,7 +71,7 @@ namespace Vault.Tests.StructureService
                 .Returns(new[]
                 {
                     new Chunk(4, 7, ChunkFlags.IsFirstChunk, content3.Split(Chunk.MaxContentSize)[0]),
-                    new Chunk(7, 0, ChunkFlags.IsLastChunk, content3.Split(Chunk.MaxContentSize)[1])
+                    new Chunk(7, 0, ChunkFlags.IsLastChunk, content3.Split(Chunk.MaxContentSize, true)[1])
                 });
 
             var content4 = Gc.GetByteBufferFromPattern(Gc.Pattern1, Chunk.MaxContentSize * 3, Chunk.MaxContentSize * 3);
@@ -81,7 +81,7 @@ namespace Vault.Tests.StructureService
                 {
                     new Chunk(4, 7, ChunkFlags.IsFirstChunk, content4.Split(Chunk.MaxContentSize)[0]),
                     new Chunk(7, 9, ChunkFlags.None, content4.Split(Chunk.MaxContentSize)[1]),
-                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content4.Split(Chunk.MaxContentSize)[2])
+                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content4.Split(Chunk.MaxContentSize, true)[2])
                 });
 
             var content5 = Gc.GetByteBufferFromPattern(Gc.Pattern1, Chunk.MaxContentSize * 3 - 10,
@@ -92,7 +92,7 @@ namespace Vault.Tests.StructureService
                 {
                     new Chunk(4, 7, ChunkFlags.IsFirstChunk, content5.Split(Chunk.MaxContentSize)[0]),
                     new Chunk(7, 9, ChunkFlags.None, content5.Split(Chunk.MaxContentSize)[1]),
-                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content5.Split(Chunk.MaxContentSize)[2])
+                    new Chunk(9, 0, ChunkFlags.IsLastChunk, content5.Split(Chunk.MaxContentSize, true)[2])
                 });
 
 
@@ -103,7 +103,8 @@ namespace Vault.Tests.StructureService
         ]
         public Chunk[] CreateChunkSequenceForRecordBinary(byte[] binary)
         {
-            return _service.CreateChunkSequenceForRecordBinary(binary);
+            var result = _service.CreateChunkSequenceForRecordBinary(binary);
+            return result;
         }
 
         #endregion
@@ -120,11 +121,11 @@ namespace Vault.Tests.StructureService
 
                 new TestCaseData((ushort) 1)
                     .SetName("2. Чтение второго чанка из записи.")
-                    .Returns(new Chunk(1, 2, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize))),
+                    .Returns(new Chunk(1, 2, ChunkFlags.None, Gc.P2())),
 
                 new TestCaseData((ushort) 3)
                     .SetName("3. Чтение последнего чанка из записи.")
-                    .Returns(new Chunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize))),
+                    .Returns(new Chunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3())),
 
                 new TestCaseData((ushort) 4)
                     .SetName("4. Нельзя прочитать удаленный чанк.")
@@ -159,13 +160,13 @@ namespace Vault.Tests.StructureService
         {
             return new[]
             {
-                new TestCaseData(new Chunk(1, 0, ChunkFlags.IsLastChunk, Gc.P2(Chunk.MaxContentSize)))
+                new TestCaseData(new Chunk(1, 0, ChunkFlags.IsLastChunk, Gc.P2()))
                 .SetName("1. Запись внутри аллоцированной памяти в потоке MFT."),
 
-                new TestCaseData(new Chunk(51, 0, ChunkFlags.IsLastChunk, Gc.P1(Chunk.MaxContentSize)))
+                new TestCaseData(new Chunk(51, 0, ChunkFlags.IsLastChunk, Gc.P1()))
                 .SetName("2. Запись вне аллоцированной памяти в потоке MFT."),
 
-                new TestCaseData(new Chunk(1020, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize)))
+                new TestCaseData(new Chunk(1020, 0, ChunkFlags.IsLastChunk, Gc.P3()))
                 .SetName("3. Запись во втором блоке памяти в потоке MFT."),
 
 
@@ -197,9 +198,9 @@ namespace Vault.Tests.StructureService
                 .Returns(new[]
                 {
                     new Chunk(0, 1, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(0,RecordFlags.IsDirectory, "first record"))),
-                    new Chunk(1, 2, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize)),
-                    new Chunk(2, 3, ChunkFlags.None, Gc.P2(Chunk.MaxContentSize)),
-                    new Chunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize))
+                    new Chunk(1, 2, ChunkFlags.None, Gc.P2()),
+                    new Chunk(2, 3, ChunkFlags.None, Gc.P2()),
+                    new Chunk(3, 0, ChunkFlags.IsLastChunk, Gc.P3())
                 }),
 
                 new TestCaseData((ushort)5)
@@ -207,7 +208,7 @@ namespace Vault.Tests.StructureService
                 .Returns(new[]
                 {
                     new Chunk(5, 6, ChunkFlags.IsFirstChunk, Gc.P1(Chunk.MaxContentSize, GetRecordPrefix(5,RecordFlags.IsReference, "second record"))),
-                    new Chunk(6, 0, ChunkFlags.IsLastChunk, Gc.P3(Chunk.MaxContentSize))
+                    new Chunk(6, 0, ChunkFlags.IsLastChunk, Gc.P3())
                 }),
 
                 new TestCaseData((ushort)8)
@@ -362,21 +363,41 @@ namespace Vault.Tests.StructureService
 
         public static IEnumerable WriteRecord_TestCaseSource()
         {
-            var blockMask = new BitMask(new byte[127]);
-            blockMask.SetValuesTo(true, 0, 1, 2, 3, 4, 5, 6, 8, 11, 12);
+            var result = new List<TestCaseData>();
 
+
+            // case 1
+
+            var blockMask1 = new BitMask(new byte[127]);
+            blockMask1.SetValuesTo(true, 0, 1, 2, 3, 4, 5, 6, 8, 11, 12);
             var recordPrefix1 = GetRecordPrefix(0, RecordFlags.IsDirectory, "first new record name");
             var record1 = new Record(0, "first new record name", RecordFlags.IsDirectory, Gc.P1(100));
             var writeRecordTestResult1 = new WriteRecordTestResult();
-            writeRecordTestResult1.ResultRecordId = 4;
-            writeRecordTestResult1.Masks = new Dictionary<int, BitMask> {{0, blockMask}};
-            writeRecordTestResult1.AddChunkToCompare(new Chunk(4, 0, ChunkFlags.IsFirstChunk | ChunkFlags.IsLastChunk, Gc.P1(100, recordPrefix1, 126).ToArray()));
+            writeRecordTestResult1.Masks = new Dictionary<int, BitMask> {{0, blockMask1}};
+            writeRecordTestResult1.AddChunkToCompare(new Chunk(4, 0, ChunkFlags.IsFirstChunk | ChunkFlags.IsLastChunk, Gc.P1(100, recordPrefix1, 126)));
 
-            var case1 = new TestCaseData(record1, new [] {4}, (Action<Core.Data.StructureService>)(p => { }))
+            result.Add(new TestCaseData(record1, new [] {4}, (Action<Core.Data.StructureService>)(p => { }))
                 .SetName("1. Write record from one chunk on first avialable place.")
-                .Returns(writeRecordTestResult1);
+                .Returns(writeRecordTestResult1));
 
-            return new[] {case1};
+            // case 2
+
+            var blockMask2 = new BitMask(new byte[127]);
+            blockMask2.SetValuesTo(true, 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12);
+            var recordPrefix2 = GetRecordPrefix(0, RecordFlags.IsReference, "second new record name");
+            var record2 = new Record(0, "second new record name", RecordFlags.IsReference, Gc.P1(1900));
+            var writeRecordTestResult2 = new WriteRecordTestResult();
+            writeRecordTestResult2.Masks = new Dictionary<int, BitMask> { { 0, blockMask2 } };
+            writeRecordTestResult2.AddChunkToCompare(new Chunk(4, 7, ChunkFlags.IsFirstChunk , ArrayExtentions.Join(recordPrefix2, Gc.P1().Take(Chunk.MaxContentSize - recordPrefix2.Length).ToArray())));
+            writeRecordTestResult2.AddChunkToCompare(new Chunk(7, 0, ChunkFlags.IsLastChunk , Gc.P1(1900)
+                .Skip(Chunk.MaxContentSize - recordPrefix2.Length) 
+                .ToArray()));
+
+            result.Add(new TestCaseData(record2, new[] { 4, 7 }, (Action<Core.Data.StructureService>)(p => { }))
+                .SetName("2. Write record from two chunk on first avialable place.")
+                .Returns(writeRecordTestResult2));
+
+            return result;
         }
 
         [Test, TestCaseSource(typeof(StructureServiceTests), nameof(WriteRecord_TestCaseSource))]
@@ -387,7 +408,7 @@ namespace Vault.Tests.StructureService
             var result = new WriteRecordTestResult();
 
 
-            result.ResultRecordId = _service.WriteRecord(record);
+            _service.WriteRecord(record);
             result.ComparatedChunks = chunksToCompare.Select(id => _service.ReadChunk((ushort) id)).ToList();
             result.Masks = _service.Masks;
 
@@ -401,8 +422,6 @@ namespace Vault.Tests.StructureService
                 ComparatedChunks = new List<Chunk>();
             }
 
-            public int ResultRecordId { get; set; }
-
             public Dictionary<int,BitMask> Masks { get; set; }
 
             public List<Chunk> ComparatedChunks { get; set; }
@@ -412,6 +431,7 @@ namespace Vault.Tests.StructureService
                 ComparatedChunks.Add(chunk);
             }
 
+            #pragma warning disable 659
             public override bool Equals(object obj)
             {
                 var result = obj as WriteRecordTestResult;
@@ -422,9 +442,6 @@ namespace Vault.Tests.StructureService
 
             public bool Equals(WriteRecordTestResult result)
             {
-                if (result.ResultRecordId != ResultRecordId)
-                    return false;
-
                 foreach (var key in Masks.Keys)
                 {
                     var mask = Masks[key];

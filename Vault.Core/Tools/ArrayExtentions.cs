@@ -87,7 +87,7 @@ namespace Vault.Core.Tools
                     {
                         size = self.Length%chunkLength;
                         if (size == 0)
-                            size = self.Length;
+                            size = Math.Min(self.Length, chunkLength);
                     }
                     else
                     {
