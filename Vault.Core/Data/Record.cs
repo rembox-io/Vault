@@ -61,6 +61,12 @@ namespace Vault.Core.Data
         }
 
 
+        public override string ToString()
+        {
+            var length = Content?.Length.ToString() ?? string.Empty;
+            return $"Record: Id:{Id}, RecordFlags:{Flags}, Name:{Name}, Content:{length}";
+        }
+
         public override bool Equals(object obj)
         {
             var record = obj as Record;

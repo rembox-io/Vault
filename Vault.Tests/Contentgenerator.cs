@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Vault.Core.Data;
 
 namespace Vault.Tests
 {
@@ -24,22 +25,22 @@ namespace Vault.Tests
             return buffer;
         }
 
-        public static byte[] P1(int size, byte[] prefix = null)
+        public static byte[] P1(int size = Chunk.MaxContentSize, byte[] prefix = null)
         {
             return GetByteBufferFromPattern(Pattern1, size, size, prefix);
         }
 
-        public static byte[] P2(int size, byte[] prefix = null)
+        public static byte[] P2(int size = Chunk.MaxContentSize, byte[] prefix = null)
         {
             return GetByteBufferFromPattern(Pattern2, size, size, prefix);
         }
 
-        public static byte[] P3(int size, byte[] prefix = null)
+        public static byte[] P3(int size = Chunk.MaxContentSize, byte[] prefix = null)
         {
             return GetByteBufferFromPattern(Pattern3, size, size, prefix);
         }
 
-        public static byte[] Empty(int size)
+        public static byte[] Empty(int size = Chunk.MaxContentSize)
         {
             return GetByteBufferFromPattern(new [] { (byte)0 }, size, size);
         }
