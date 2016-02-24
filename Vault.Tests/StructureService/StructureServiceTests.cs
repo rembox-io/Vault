@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
 using System.IO;
 using System.Linq;
@@ -352,6 +354,93 @@ namespace Vault.Tests.StructureService
         {
             var result = _service.ReadRecord((ushort)startRecordChunkId);
             return result;
+        }
+
+        #endregion
+
+        #region WriteRecord
+
+        public static IEnumerable WriteRecord_TestCaseSource()
+        {
+            var blockMask = new BitMask(new byte[127]);
+            blockMask.SetValuesTo(true, 0, 1, 2, 3, 4, 5, 6, 8, 11, 12);
+
+            var recordPrefix1 = GetRecordPrefix(0, RecordFlags.IsDirectory, "first new record name");
+            var record1 = new Record(0, "first new record name", RecordFlags.IsDirectory, Gc.P1(100));
+            var writeRecordTestResult1 = new WriteRecordTestResult();
+            writeRecordTestResult1.ResultRecordId = 4;
+            writeRecordTestResult1.Masks = new Dictionary<int, BitMask> {{0, blockMask}};
+            writeRecordTestResult1.AddChunkToCompare(new Chunk(4, 0, ChunkFlags.IsFirstChunk | ChunkFlags.IsLastChunk, Gc.P1(100, recordPrefix1, 126).ToArray()));
+
+            var case1 = new TestCaseData(record1, new [] {4}, (Action<Core.Data.StructureService>)(p => { }))
+                .SetName("1. Write record from one chunk on first avialable place.")
+                .Returns(writeRecordTestResult1);
+
+            return new[] {case1};
+        }
+
+        [Test, TestCaseSource(typeof(StructureServiceTests), nameof(WriteRecord_TestCaseSource))]
+        public WriteRecordTestResult WriteRecord(Record record, int[] chunksToCompare, Action<Core.Data.StructureService> prepareAction)
+        {
+            prepareAction(_service);
+
+            var result = new WriteRecordTestResult();
+
+
+            result.ResultRecordId = _service.WriteRecord(record);
+            result.ComparatedChunks = chunksToCompare.Select(id => _service.ReadChunk((ushort) id)).ToList();
+            result.Masks = _service.Masks;
+
+            return result;
+        }
+
+        public class WriteRecordTestResult
+        {
+            public WriteRecordTestResult()
+            {
+                ComparatedChunks = new List<Chunk>();
+            }
+
+            public int ResultRecordId { get; set; }
+
+            public Dictionary<int,BitMask> Masks { get; set; }
+
+            public List<Chunk> ComparatedChunks { get; set; }
+
+            public void AddChunkToCompare(Chunk chunk)
+            {
+                ComparatedChunks.Add(chunk);
+            }
+
+            public override bool Equals(object obj)
+            {
+                var result = obj as WriteRecordTestResult;
+                if (result == null)
+                    return false;
+                return Equals(result);
+            }
+
+            public bool Equals(WriteRecordTestResult result)
+            {
+                if (result.ResultRecordId != ResultRecordId)
+                    return false;
+
+                foreach (var key in Masks.Keys)
+                {
+                    var mask = Masks[key];
+                    if (!mask.Bytes.SequenceEqual(result.Masks[key].Bytes))
+                        return false;
+                }
+
+                foreach (var chunk in ComparatedChunks)
+                {
+                    var expectedChunk = result.ComparatedChunks.SingleOrDefault(p => p.Id == chunk.Id);
+                    if (!chunk.Equals(expectedChunk))
+                        return false;
+                }
+
+                return true;
+            }
         }
 
         #endregion

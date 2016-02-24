@@ -11,8 +11,10 @@ namespace Vault.Core.Data
         public StructureService(Stream stream)
         {
             _stream = stream;
-            _blockMaskStorage = new LazyStorage<int, BitMask>(GetRecordBlockMask);
+            BlockMaskStorage = new LazyStorage<int, BitMask>(GetRecordBlockMask);
         }
+
+        // public methods
 
         public Record ReadRecord(ushort recordId)
         {
@@ -35,6 +37,8 @@ namespace Vault.Core.Data
             record.Id = chunks[0].Id;
             return chunks[0].Id;
         }
+
+        // internal methods
 
         internal Chunk[] CreateChunkSequenceForRecordBinary(byte[] binary)
         {
@@ -67,7 +71,7 @@ namespace Vault.Core.Data
 
         internal Chunk ReadChunk(ushort recordId)
         {
-            var recordAllocated = _blockMaskStorage[recordId/_numberOfRecordsInRecordBlock][LocalizeChunkId(recordId)];
+            var recordAllocated = BlockMaskStorage[recordId/_numberOfRecordsInRecordBlock][LocalizeChunkId(recordId)];
             if (!recordAllocated)
                 throw new VaultException();
 
@@ -145,6 +149,10 @@ namespace Vault.Core.Data
             return offset;
         }
 
+        internal Dictionary<int, BitMask> Masks => BlockMaskStorage.CloneAsDictionary();
+
+        // private methods
+
         private int LocalizeChunkId(ushort recordId)
         {
             var recordIndexInRecordBlock = recordId%_numberOfRecordsInRecordBlock;
@@ -154,10 +162,10 @@ namespace Vault.Core.Data
 
         private ushort GetAndReserveNextAvialableRecordIndex()
         {
-            for (int blockIndex = 0; blockIndex < _blockMaskStorage.Count; blockIndex++)
+            for (int blockIndex = 0; blockIndex < BlockMaskStorage.Count; blockIndex++)
             {
-                var result = _blockMaskStorage[blockIndex].GetFirstIndexOf(false);
-                _blockMaskStorage[blockIndex].SetReserveValueTo(result, true);
+                var result = BlockMaskStorage[blockIndex].GetFirstIndexOf(false);
+                BlockMaskStorage[blockIndex].SetReserveValueTo(result, true);
                 if (result > -1)
                 {
                     if(result > ushort.MaxValue)
@@ -166,7 +174,7 @@ namespace Vault.Core.Data
                 }
             }
 
-            var mask = GetOrCreateRecrodsBlockMask(_blockMaskStorage.Count);
+            var mask = GetOrCreateRecrodsBlockMask(BlockMaskStorage.Count);
             var value = mask.GetFirstIndexOf(false);
             mask.SetReserveValueTo(value, true);
             return (ushort)value;
@@ -178,9 +186,9 @@ namespace Vault.Core.Data
             var blockIndex = chunkId/_numberOfRecordsInRecordBlock;
 
             var offset = _fullRecordSzie * blockIndex;
-            _blockMaskStorage[blockIndex].SetValueTo(localChunkId, value);
+            BlockMaskStorage[blockIndex].SetValueTo(localChunkId, value);
             _stream.Seek(offset, SeekOrigin.Begin);
-            _stream.Write(_blockMaskStorage[blockIndex].Bytes, 0 ,_blockMaskStorage[blockIndex].Bytes.Length);
+            _stream.Write(BlockMaskStorage[blockIndex].Bytes, 0 ,BlockMaskStorage[blockIndex].Bytes.Length);
         }
 
         internal bool GetChunkOccupatedValue(ushort chunkId)
@@ -188,7 +196,7 @@ namespace Vault.Core.Data
             var localChunkId = LocalizeChunkId(chunkId);
             var blockIndex = chunkId / _numberOfRecordsInRecordBlock;
 
-            return _blockMaskStorage[blockIndex][localChunkId];
+            return BlockMaskStorage[blockIndex][localChunkId];
         }
 
         private BitMask GetRecordBlockMask(int blockIndex)
@@ -207,7 +215,7 @@ namespace Vault.Core.Data
 
         private BitMask GetOrCreateRecrodsBlockMask(int blockIndex)
         {
-            var blockMask = _blockMaskStorage[blockIndex];
+            var blockMask = BlockMaskStorage[blockIndex];
             if (blockMask != null)
                 return blockMask;
 
@@ -221,7 +229,7 @@ namespace Vault.Core.Data
 
         // fields
 
-        private readonly LazyStorage<int, BitMask> _blockMaskStorage;
+        internal readonly LazyStorage<int, BitMask> BlockMaskStorage;
 
         private static readonly int _recordSize = 1024;
         private static readonly int _fullRecordSzie = 1143;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Linq;
 
 namespace Vault.Core.Tools
 {
@@ -15,6 +16,8 @@ namespace Vault.Core.Tools
         public int Count => _storage.Count;
 
         public TResult this[TKey index] => Get(index);
+
+        public Dictionary<TKey, TResult> CloneAsDictionary() => _storage.ToDictionary(k => k.Key, v => v.Value);
 
         private TResult Get(TKey key)
         {

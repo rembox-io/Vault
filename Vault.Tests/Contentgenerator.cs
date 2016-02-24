@@ -8,26 +8,31 @@ namespace Vault.Tests
     {
         public static byte[] GetByteBufferFromPattern(byte[] pattern, int bufferSize, int numberOfWriteingBytes, byte[] prefix = null)
         {
+            int startIndex = 0;
             var buffer = new byte[bufferSize];
 
-            int startIndex = 0;
             if (prefix != null)
             {
                 startIndex = prefix.Length;
+                if (bufferSize >= numberOfWriteingBytes + prefix.Length)
+                    numberOfWriteingBytes += startIndex;
                 Array.Copy(prefix, buffer, prefix.Length);
             }
 
+            var j = 0;
             for (int i = startIndex; i < numberOfWriteingBytes; i++)
             {
-                var patternIndex = (i + pattern.Length)%pattern.Length;
+                var patternIndex = (j++ + pattern.Length)%pattern.Length;
                 buffer[i] = pattern[patternIndex];
             }
             return buffer;
         }
 
-        public static byte[] P1(int size = Chunk.MaxContentSize, byte[] prefix = null)
+        public static byte[] P1(int size = Chunk.MaxContentSize, byte[] prefix = null, int bufferSize = -1)
         {
-            return GetByteBufferFromPattern(Pattern1, size, size, prefix);
+            if (bufferSize == -1)
+                bufferSize = size;
+            return GetByteBufferFromPattern(Pattern1, bufferSize, size, prefix);
         }
 
         public static byte[] P2(int size = Chunk.MaxContentSize, byte[] prefix = null)
