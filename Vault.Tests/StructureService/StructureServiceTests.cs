@@ -397,6 +397,27 @@ namespace Vault.Tests.StructureService
                 .SetName("2. Write record from two chunk on first avialable place.")
                 .Returns(writeRecordTestResult2));
 
+            // case 3
+
+            var blockMask3 = new BitMask(new byte[127]);
+            blockMask3.SetValuesTo(true, Enumerable.Range(0, 1016).ToArray());
+
+            var blockMask31 = new BitMask(new byte[127]);
+            blockMask31.SetValuesTo(true, 0);
+
+            var recordPrefix3 = GetRecordPrefix(0, RecordFlags.IsReference, "third new record name");
+            var record3 = new Record(0, "third new record name", RecordFlags.IsReference, Gc.P1(1900));
+            var writeRecordTestResult3 = new WriteRecordTestResult();
+            writeRecordTestResult3.Masks = new Dictionary<int, BitMask> {{0, blockMask3}, {1, blockMask31}};
+            writeRecordTestResult3.AddChunkToCompare(new Chunk(1015, 1016, ChunkFlags.IsFirstChunk , ArrayExtentions.Join(recordPrefix3, Gc.P1().Take(Chunk.MaxContentSize - recordPrefix3.Length).ToArray())));
+            writeRecordTestResult3.AddChunkToCompare(new Chunk(1016, 0, ChunkFlags.IsLastChunk , Gc.P1(1900)
+                .Skip(Chunk.MaxContentSize - recordPrefix3.Length) 
+                .ToArray()));
+
+            result.Add(new TestCaseData(record3, new[] { 1015, 1016 }, (Action<Core.Data.StructureService>)(p =>{ p.BlockMaskStorage[0].SetValuesTo(true, Enumerable.Range(0, 1015).ToArray()); }))
+                .SetName("3. Write record from two chunk on border of two record block.")
+                .Returns(writeRecordTestResult3));
+            
             return result;
         }
 

@@ -165,11 +165,12 @@ namespace Vault.Core.Data
             for (int blockIndex = 0; blockIndex < BlockMaskStorage.Count; blockIndex++)
             {
                 var result = BlockMaskStorage[blockIndex].GetFirstIndexOf(false);
-                BlockMaskStorage[blockIndex].SetReserveValueTo(result, true);
                 if (result > -1)
                 {
                     if(result > ushort.MaxValue)
                         throw new VaultException("Reached maximum number of chunks in vault.");
+                    BlockMaskStorage[blockIndex].SetReserveValueTo(result, true);
+                    result += _numberOfRecordsInRecordBlock*blockIndex;
                     return (ushort) result;
                 }
             }
@@ -177,7 +178,7 @@ namespace Vault.Core.Data
             var mask = GetOrCreateRecrodsBlockMask(BlockMaskStorage.Count);
             var value = mask.GetFirstIndexOf(false);
             mask.SetReserveValueTo(value, true);
-            return (ushort)value;
+            return (ushort)(value + (BlockMaskStorage.Count - 1)*_numberOfRecordsInRecordBlock);
         }
 
         private void SetChunkOccupatedValue(ushort chunkId, bool value)
