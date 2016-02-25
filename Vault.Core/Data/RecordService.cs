@@ -6,9 +6,9 @@ using Vault.Core.Tools;
 
 namespace Vault.Core.Data
 {
-    public class StructureService 
+    public class RecordService 
     {
-        public StructureService(Stream stream)
+        public RecordService(Stream stream)
         {
             _stream = stream;
             BlockMaskStorage = new LazyStorage<int, BitMask>(GetRecordBlockMask);

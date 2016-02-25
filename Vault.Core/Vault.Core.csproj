@@ -48,7 +48,7 @@
     <Compile Include="Data\Chunk.cs" />
     <Compile Include="Data\Record.cs" />
     <Compile Include="Data\RecordBlockInfo.cs" />
-    <Compile Include="Data\StructureService.cs" />
+    <Compile Include="Data\RecordService.cs" />
     <Compile Include="Data\VaultConfiguration.cs" />
     <Compile Include="Data\VaultInfo.cs" />
     <Compile Include="Data\VaultStream.cs" />
