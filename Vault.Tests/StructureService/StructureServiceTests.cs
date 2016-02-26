@@ -21,7 +21,7 @@ namespace Vault.Tests.StructureService
             blockMask.SetValuesTo(true, 0, 1, 2, 3, 5, 6, 8, 11, 12);
 
             _memoryStream = new MemoryStream();
-            _memoryStream.Write(new byte[Core.Data.RecordService._recordsBlockSize], 0, Core.Data.RecordService._recordsBlockSize);
+            _memoryStream.Write(new byte[RecordService._recordsBlockSize], 0, RecordService._recordsBlockSize);
 
             _memoryStream.Seek(0, SeekOrigin.Begin);
             _memoryStream.Write(blockMask.Bytes, 0, blockMask.Bytes.Length);
@@ -47,7 +47,7 @@ namespace Vault.Tests.StructureService
             InternalWriteChunk(12, 0, ChunkFlags.IsLastChunk, Gc.P2());
 
 
-            _service = new Core.Data.RecordService(_memoryStream);
+            _service = new RecordService(_memoryStream);
 
         }
 
@@ -375,7 +375,7 @@ namespace Vault.Tests.StructureService
             writeRecordTestResult1.Masks = new Dictionary<int, BitMask> {{0, blockMask1}};
             writeRecordTestResult1.AddChunkToCompare(new Chunk(4, 0, ChunkFlags.IsFirstChunk | ChunkFlags.IsLastChunk, Gc.P1(100, recordPrefix1, 126)));
 
-            result.Add(new TestCaseData(record1, new [] {4}, (Action<Core.Data.RecordService>)(p => { }))
+            result.Add(new TestCaseData(record1, new [] {4}, (Action<RecordService>)(p => { }))
                 .SetName("1. Write record from one chunk on first avialable place.")
                 .Returns(writeRecordTestResult1));
 
@@ -392,7 +392,7 @@ namespace Vault.Tests.StructureService
                 .Skip(Chunk.MaxContentSize - recordPrefix2.Length) 
                 .ToArray()));
 
-            result.Add(new TestCaseData(record2, new[] { 4, 7 }, (Action<Core.Data.RecordService>)(p => { }))
+            result.Add(new TestCaseData(record2, new[] { 4, 7 }, (Action<RecordService>)(p => { }))
                 .SetName("2. Write record from two chunk on first avialable place.")
                 .Returns(writeRecordTestResult2));
 
@@ -413,7 +413,7 @@ namespace Vault.Tests.StructureService
                 .Skip(Chunk.MaxContentSize - recordPrefix3.Length) 
                 .ToArray()));
 
-            result.Add(new TestCaseData(record3, new[] { 1015, 1016 }, (Action<Core.Data.RecordService>)(p =>{ p.BlockMaskStorage[0].SetValuesTo(true, Enumerable.Range(0, 1015).ToArray()); }))
+            result.Add(new TestCaseData(record3, new[] { 1015, 1016 }, (Action<RecordService>)(p =>{ p.BlockMaskStorage[0].SetValuesTo(true, Enumerable.Range(0, 1015).ToArray()); }))
                 .SetName("3. Write record from two chunk on border of two record block.")
                 .Returns(writeRecordTestResult3));
             
@@ -421,7 +421,7 @@ namespace Vault.Tests.StructureService
         }
 
         [Test, TestCaseSource(typeof(StructureServiceTests), nameof(WriteRecord_TestCaseSource))]
-        public WriteRecordTestResult WriteRecord(Record record, int[] chunksToCompare, Action<Core.Data.RecordService> prepareAction)
+        public WriteRecordTestResult WriteRecord(Record record, int[] chunksToCompare, Action<RecordService> prepareAction)
         {
             prepareAction(_service);
 
@@ -550,6 +550,6 @@ namespace Vault.Tests.StructureService
         // fields
 
         private MemoryStream _memoryStream;
-        private Core.Data.RecordService _service;
+        private RecordService _service;
     }
 }

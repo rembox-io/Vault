@@ -44,11 +44,17 @@
     <Compile Include="Data\BitMask.cs" />
     <Compile Include="Data\Block.cs" />
     <Compile Include="Data\DataService.cs" />
+    <Compile Include="Data\DirectoryEntity.cs" />
+    <Compile Include="Data\FileEntity.cs" />
+    <Compile Include="Data\Entity.cs" />
+    <Compile Include="Data\IStructureService.cs" />
     <Compile Include="Data\Range.cs" />
     <Compile Include="Data\Chunk.cs" />
     <Compile Include="Data\Record.cs" />
     <Compile Include="Data\RecordBlockInfo.cs" />
     <Compile Include="Data\RecordService.cs" />
+    <Compile Include="Data\StructureService\PathParser.cs" />
+    <Compile Include="Data\StructureService\StructureServiceImpl.cs" />
     <Compile Include="Data\VaultConfiguration.cs" />
     <Compile Include="Data\VaultInfo.cs" />
     <Compile Include="Data\VaultStream.cs" />

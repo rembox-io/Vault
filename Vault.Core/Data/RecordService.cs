@@ -112,6 +112,7 @@ namespace Vault.Core.Data
             });
 
             var record = new Record(buffer);
+            record.Id = chunkSequence[0].Id;
             return record;
         }
 
